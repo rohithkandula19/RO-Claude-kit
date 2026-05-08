@@ -78,12 +78,12 @@ RO-Claude-kit/
 | `eval-suite` | ✅ shipped | 11 |
 | `memory` | ✅ shipped | 11 |
 | `hardening` | ✅ shipped | 20 |
-| `mcp-servers` | 🟡 Postgres shipped; Stripe/Linear/Slack/Notion planned | 20 |
+| `mcp-servers` | ✅ shipped (Postgres, Stripe, Linear, Slack, Notion — all read-only) | 49 |
 | `deployment-templates` | ✅ shipped (Docker Compose, Modal, Vercel, Railway) |  |
 | `apps/demo` (AgentLab) | ✅ shipped — runnable FastAPI playground | 5 |
 | `apps/docs` | 🚧 planned |  |
 
-78 tests across the shipped modules, all passing on every push (see CI).
+107 tests across the shipped modules, all passing on every push (see CI).
 
 ## Try AgentLab locally
 

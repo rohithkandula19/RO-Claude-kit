@@ -2020,6 +2020,7 @@ name = "ro-claude-kit-mcp-servers"
 version = "0.0.1"
 source = { editable = "packages/mcp-servers" }
 dependencies = [
+    { name = "httpx" },
     { name = "pydantic" },
 ]
 
@@ -2038,6 +2039,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "httpx", specifier = ">=0.27" },
     { name = "mcp", marker = "extra == 'mcp'", specifier = ">=1.0" },
     { name = "psycopg2-binary", marker = "extra == 'postgres'", specifier = ">=2.9" },
     { name = "pydantic", specifier = ">=2.5" },
