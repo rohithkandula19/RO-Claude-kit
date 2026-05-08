@@ -81,7 +81,7 @@ RO-Claude-kit/
 | `mcp-servers` | ✅ shipped (Postgres, Stripe, Linear, Slack, Notion — all read-only) | 49 |
 | `deployment-templates` | ✅ shipped (Docker Compose, Modal, Vercel, Railway) |  |
 | `apps/demo` (AgentLab) | ✅ shipped — runnable FastAPI playground | 5 |
-| `apps/docs` | 🚧 planned |  |
+| `apps/docs` | ✅ shipped — Mintlify site with Mermaid diagrams |  |
 
 107 tests across the shipped modules, all passing on every push (see CI).
 
