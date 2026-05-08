@@ -14,5 +14,6 @@ members = [
     "packages/memory",
     "packages/mcp-servers",
     "packages/hardening",
+    "packages/cli",
     "apps/demo",
 ]

@@ -39,6 +39,9 @@ jobs:
       - name: Test (Node)
         run: pnpm run test
 
+      - name: Install Python deps (with dev groups)
+        run: uv sync --all-packages --all-groups
+
       - name: Test (Python)
         run: |
           uv run --frozen pytest \
@@ -47,5 +50,14 @@ jobs:
             packages/memory \
             packages/hardening \
             packages/mcp-servers \
+            packages/cli \
             apps/demo \
             -q
+
+      - name: Smoke test csk CLI
+        run: |
+          mkdir -p /tmp/csk-smoke && cd /tmp/csk-smoke
+          uv --project "$GITHUB_WORKSPACE" run csk init --demo -y
+          uv --project "$GITHUB_WORKSPACE" run csk tools
+          uv --project "$GITHUB_WORKSPACE" run csk doctor
+          uv --project "$GITHUB_WORKSPACE" run csk version

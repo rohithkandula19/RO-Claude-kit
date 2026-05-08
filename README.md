@@ -1,99 +1,164 @@
 # RO-Claude-kit
 
-> An opinionated reference implementation for shipping production Claude agents in a weekend.
+> The Claude-powered CLI for startup ops. Install once, configure once, then ask Claude to actually do things with your data.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Status](https://img.shields.io/badge/status-under%20construction-orange)](https://github.com/rohithkandula19/RO-Claude-kit)
+[![Status](https://img.shields.io/badge/status-v0.1.0-blue)](https://github.com/rohithkandula19/RO-Claude-kit)
 [![Built for Claude](https://img.shields.io/badge/built%20for-Claude-d4a373)](https://www.anthropic.com)
-
-`RO-Claude-kit` is the agent-builder starter pack I wish existed when I was wiring my first production Claude system. It bundles the patterns, evals, memory, MCP integrations, and hardening that every AI-native startup ends up rebuilding — and bakes them into a fork-and-ship monorepo.
-
-Think `create-next-app` for Claude agents.
-
-## Why this exists
-
-Most Claude agents in the wild fail in the same ways:
-
-- **No evals.** "It seemed to work in our demo" is not a release criterion.
-- **Brittle tool use.** One bad arg, one rate limit, and the agent crashes the loop.
-- **Prompt-injection foot-guns.** User input flows straight into a tool-calling planner.
-- **No memory strategy.** Conversation history just accumulates until the context window dies.
-- **No observability.** When prod breaks, you're reading raw token streams.
-
-The kit ships opinionated, batteries-included modules for each of these so you can spend your weekend building the *interesting* part of your product.
-
-## Who it's for
-
-- AI-native startup founders who need a working agent in production this month, not next quarter.
-- Engineers who've shipped a chatbot demo and now need to make it survive real users.
-- Teams evaluating Claude for an agentic product and want a credible reference implementation to point at.
-
-## The six modules
-
-| Module | What it does |
-|---|---|
-| `agent-patterns` | ReAct, Planner-Executor, Multi-Agent Supervisor, Reflexion — Python with a TS wrapper |
-| `eval-suite` | LLM-as-a-judge with golden datasets, drift detection, HTML reports, CLI runner |
-| `memory` | Short-term (compressed history) + long-term (pluggable vector store) + user preferences |
-| `mcp-servers` | Reference MCP templates: Stripe, Linear, Slack, Notion, Postgres (read-only by default) |
-| `hardening` | Prompt-injection defense, tool allowlists, output validation, Langfuse / Helicone tracing |
-| `deployment-templates` | One-click deploys to Vercel, Railway, Modal, and Docker Compose |
-
-## Quickstart
-
-> Coming in Week 4. The TL;DR will look something like:
+[![Tests](https://img.shields.io/badge/tests-127%20passing-green)](https://github.com/rohithkandula19/RO-Claude-kit/actions)
 
 ```bash
-# clone + install
+$ pipx install ro-claude-kit-cli
+$ csk init --demo
+$ csk ask "how many active subscriptions do we have, and what's our MRR?"
+
+🤔 thinking…
+✅ You have 2 active subscriptions: Alice (Pro $49/mo) and Bob (Starter $29/mo).
+   Total MRR from active subs: $78/mo.
+```
+
+## What is `csk`?
+
+`csk` is the CLI you point at your startup's data. Configure once with read-only credentials for the services you care about — Stripe, Linear, Slack, Notion, Postgres — then ask questions in plain English. Claude reaches for the right tool, queries the right data, and answers.
+
+No more clicking through five dashboards to answer "which customers churned this month and what was their last support thread?"
+
+## Install
+
+```bash
+pipx install ro-claude-kit-cli                  # recommended (isolated venv)
+# or
+pip install ro-claude-kit-cli                   # for ad-hoc use
+```
+
+For Postgres support: `pipx install 'ro-claude-kit-cli[postgres]'`.
+
+## 30-second quickstart (no real credentials)
+
+```bash
+csk init --demo                                  # ships fake Stripe + Linear data
+csk ask "what ENG issues are in progress?"
+csk ask "which customers have active subscriptions?"
+csk chat                                         # multi-turn REPL
+```
+
+Demo mode is wired so you can play with the CLI before connecting any real services.
+
+## Real config
+
+```bash
+csk init                                         # interactive prompts
+```
+
+Or write `.csk/config.toml`:
+
+```toml
+anthropic_api_key = "sk-ant-..."
+stripe_api_key = "rk_live_..."                   # use a Restricted Key
+linear_api_key = "lin_api_..."
+slack_bot_token = "xoxb-..."
+notion_token = "secret_..."
+database_url = "postgres://readonly_user:...@host:5432/db"
+```
+
+`.gitignore` `.csk/` — the file is plaintext credentials.
+
+## Commands
+
+| Command | What it does |
+|---|---|
+| `csk init [--demo]` | Create a config file (interactive or demo). |
+| `csk ask "<question>"` | One-shot agent run; prints answer + typed trace. |
+| `csk chat` | Multi-turn REPL with short-term memory. |
+| `csk tools` | List the tools registered for the current config. |
+| `csk doctor` | Health check: config, auth, services. |
+| `csk version` | Print the version. |
+
+## Safety by default
+
+Every input passes through a prompt-injection scanner before it reaches Claude. Every tool is read-only. There is no path through `csk` to mutate your data — even if Claude tries, the kit's `ToolAllowlist` blocks it. Adding write paths is a deliberate fork-and-wrap operation through `ApprovalGate`.
+
+PII (emails, SSNs, credit cards, API keys) is redacted from traces before anything leaves your process.
+
+## What's under the hood
+
+`csk` is the user-facing wrapper. The substance lives in seven packages you can also use independently:
+
+| Package | What it does | Tests |
+|---|---|---|
+| `agent-patterns` | ReAct, Planner-Executor, Multi-Agent Supervisor, Reflexion | 11 |
+| `eval-suite` | LLM-as-a-judge, golden datasets, drift detection, HTML reports | 11 |
+| `memory` | Short-term (rolling summary), long-term (pluggable vector store), user preferences | 11 |
+| `hardening` | Prompt-injection scanner, tool allowlist, approval gates, output validator | 20 |
+| `mcp-servers` | Read-only Postgres, Stripe, Linear, Slack, Notion templates | 49 |
+| `cli` | The `csk` binary | 20 |
+| `deployment-templates` | Docker Compose, Modal, Vercel, Railway one-click deploys | — |
+
+127 tests across all packages, green on every push (see CI).
+
+## Use the modules without the CLI
+
+Build an agent in 5 lines:
+
+```python
+from ro_claude_kit_agent_patterns import ReActAgent, Tool
+
+agent = ReActAgent(
+    system="You are a helpful research assistant.",
+    tools=[Tool(name="search", description="...", input_schema={...}, handler=my_search)],
+)
+print(agent.run("What is the ReAct pattern?").output)
+```
+
+Add an eval suite:
+
+```python
+from ro_claude_kit_eval_suite import EvalSuite, Rubric, GoldenDataset
+
+suite = EvalSuite(
+    rubric=Rubric(criteria=["task_success", "faithfulness", "safety"]),
+    target_runner=lambda case: agent.run(case.input).output,
+)
+report = suite.run(GoldenDataset.from_jsonl("./golden.jsonl"))
+```
+
+Add hardening:
+
+```python
+from ro_claude_kit_hardening import InjectionScanner, OutputValidator
+```
+
+## Try AgentLab — the live playground
+
+A FastAPI app that lets you click through all four agent patterns side-by-side:
+
+```bash
 git clone https://github.com/rohithkandula19/RO-Claude-kit
 cd RO-Claude-kit
-pnpm install && uv sync
-
-# pick a pattern, run an example
-uv run python examples/customer-support/main.py
-
-# evaluate the agent on a golden dataset
-uv run csk eval run examples/customer-support/golden.jsonl
+uv sync --all-packages --all-groups
+uv run uvicorn app.main:app --port 8000 --app-dir apps/demo
 ```
+
+Open http://localhost:8000.
 
 ## Repository layout
 
 ```
 RO-Claude-kit/
-├── packages/            # the six modules above
+├── packages/
+│   ├── cli/                  # the csk binary
+│   ├── agent-patterns/       # core loop patterns
+│   ├── eval-suite/           # LLM-as-a-judge
+│   ├── memory/               # 3-layer memory
+│   ├── mcp-servers/          # 5 read-only service templates
+│   ├── hardening/            # injection / allowlist / approval / validation
+│   └── deployment-templates/ # docker-compose, modal, vercel, railway
 ├── apps/
-│   ├── demo/            # AgentLab — interactive playground
-│   └── docs/            # docs site
-├── examples/            # end-to-end agents built with the kit
+│   ├── demo/                 # AgentLab — interactive playground
+│   └── docs/                 # Mintlify documentation site
+├── examples/
 └── ...
 ```
-
-## Status
-
-`v0.0.1` — under construction, building in public.
-
-| Module | Status | Tests |
-|---|---|---|
-| `agent-patterns` | ✅ shipped | 11 |
-| `eval-suite` | ✅ shipped | 11 |
-| `memory` | ✅ shipped | 11 |
-| `hardening` | ✅ shipped | 20 |
-| `mcp-servers` | ✅ shipped (Postgres, Stripe, Linear, Slack, Notion — all read-only) | 49 |
-| `deployment-templates` | ✅ shipped (Docker Compose, Modal, Vercel, Railway) |  |
-| `apps/demo` (AgentLab) | ✅ shipped — runnable FastAPI playground | 5 |
-| `apps/docs` | ✅ shipped — Mintlify site with Mermaid diagrams |  |
-
-107 tests across the shipped modules, all passing on every push (see CI).
-
-## Try AgentLab locally
-
-```bash
-uv sync --all-packages --all-groups
-export ANTHROPIC_API_KEY=sk-ant-...   # optional
-uv run uvicorn app.main:app --port 8000 --app-dir apps/demo
-```
-
-Open http://localhost:8000 — pick a pattern, send a message, watch the typed trace.
 
 ## License
 
