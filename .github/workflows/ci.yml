@@ -47,4 +47,5 @@ jobs:
             packages/memory \
             packages/hardening \
             packages/mcp-servers \
+            apps/demo \
             -q

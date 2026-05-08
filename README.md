@@ -79,11 +79,21 @@ RO-Claude-kit/
 | `memory` | ✅ shipped | 11 |
 | `hardening` | ✅ shipped | 20 |
 | `mcp-servers` | 🟡 Postgres shipped; Stripe/Linear/Slack/Notion planned | 20 |
-| `deployment-templates` | 🚧 planned |  |
-| `apps/demo` (AgentLab) | 🚧 planned |  |
+| `deployment-templates` | ✅ shipped (Docker Compose, Modal, Vercel, Railway) |  |
+| `apps/demo` (AgentLab) | ✅ shipped — runnable FastAPI playground | 5 |
 | `apps/docs` | 🚧 planned |  |
 
-73 tests across the shipped modules, all passing on every push (see CI).
+78 tests across the shipped modules, all passing on every push (see CI).
+
+## Try AgentLab locally
+
+```bash
+uv sync --all-packages --all-groups
+export ANTHROPIC_API_KEY=sk-ant-...   # optional
+uv run uvicorn app.main:app --port 8000 --app-dir apps/demo
+```
+
+Open http://localhost:8000 — pick a pattern, send a message, watch the typed trace.
 
 ## License
 
