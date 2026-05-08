@@ -1,0 +1,14 @@
+{
+  "name": "@ro-claude-kit/agent-patterns",
+  "version": "0.0.1",
+  "private": false,
+  "description": "Production-grade agent patterns for Claude (TypeScript wrapper).",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist", "README.md"],
+  "scripts": {
+    "build": "echo 'build not wired yet'",
+    "test": "echo 'no tests yet'"
+  }
+}

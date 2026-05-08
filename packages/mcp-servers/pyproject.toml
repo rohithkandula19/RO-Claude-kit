@@ -1,0 +1,14 @@
+[project]
+name = "ro-claude-kit-mcp-servers"
+version = "0.0.1"
+description = "Reference MCP server templates: Stripe, Linear, Slack, Notion, Postgres (read-only by default)."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = []
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ro_claude_kit_mcp_servers"]

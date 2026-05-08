@@ -1,0 +1,15 @@
+{
+  "name": "ro-claude-kit",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Opinionated reference implementation for shipping production Claude agents in a weekend.",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=9"
+  },
+  "scripts": {
+    "lint": "echo 'no linter wired yet'",
+    "test": "echo 'no tests yet'"
+  }
+}
