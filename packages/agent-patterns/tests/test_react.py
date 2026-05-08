@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 from ro_claude_kit_agent_patterns import ReActAgent, Tool
 
-from .conftest import make_block, make_response
+from conftest import make_block, make_response
 
 
 def test_react_no_tools_returns_immediately() -> None:

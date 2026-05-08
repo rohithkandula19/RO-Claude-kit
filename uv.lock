@@ -1682,6 +1682,24 @@ dev = [{ name = "pytest", specifier = ">=7.0" }]
 name = "ro-claude-kit-hardening"
 version = "0.0.1"
 source = { editable = "packages/hardening" }
+dependencies = [
+    { name = "anthropic" },
+    { name = "pydantic" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "anthropic", specifier = ">=0.40.0" },
+    { name = "pydantic", specifier = ">=2.5" },
+]
+
+[package.metadata.requires-dev]
+dev = [{ name = "pytest", specifier = ">=7.0" }]
 
 [[package]]
 name = "ro-claude-kit-mcp-servers"

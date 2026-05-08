@@ -40,4 +40,10 @@ jobs:
         run: pnpm run test
 
       - name: Test (Python)
-        run: uv run --frozen pytest -q || echo "no python tests yet"
+        run: |
+          uv run --frozen pytest \
+            packages/agent-patterns \
+            packages/eval-suite \
+            packages/memory \
+            packages/hardening \
+            -q

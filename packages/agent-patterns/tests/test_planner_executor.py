@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 from ro_claude_kit_agent_patterns import PlannerExecutorAgent
 
-from .conftest import make_block, make_response
+from conftest import make_block, make_response
 
 
 def test_planner_executor_happy_path() -> None:
