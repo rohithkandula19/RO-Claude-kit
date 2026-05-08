@@ -306,9 +306,10 @@ document.getElementById("run").addEventListener("click", async () => {
     if (!res.ok) {
       out.innerHTML = `<div class='answer error'>${escapeHtml(JSON.stringify(data, null, 2))}</div>`;
     } else {
-      const traceHtml = (data.trace || []).map(s =>
-        `<div class='step'><span class='kind'>${escapeHtml(s.kind)}</span><span class='content'>${escapeHtml(s.content)}</span></div>`
-      ).join("");
+      const traceHtml = (data.trace || []).map(s => {
+        const content = typeof s.content === "string" ? s.content : JSON.stringify(s.content, null, 2);
+        return `<div class='step'><span class='kind'>${escapeHtml(s.kind)}</span><span class='content'>${escapeHtml(content)}</span></div>`;
+      }).join("");
       out.innerHTML =
         `<h3>Answer</h3>` +
         `<div class='answer'>${escapeHtml(data.output || "(empty)")}</div>` +
