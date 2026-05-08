@@ -1,0 +1,103 @@
+---
+title: Quickstart
+description: Build a working Claude agent with tools, evals, and hardening in under 5 minutes.
+---
+
+## 1. Install
+
+```bash
+git clone https://github.com/rohithkandula19/RO-Claude-kit
+cd RO-Claude-kit
+uv sync --all-packages --all-groups
+export ANTHROPIC_API_KEY=sk-ant-...
+```
+
+## 2. Run an agent (30 seconds)
+
+```bash
+uv run python examples/research-agent/main.py "What is the ReAct pattern?"
+```
+
+You'll see the answer, the typed trace, and token usage.
+
+## 3. Build your own
+
+Define a tool and wire it into a `ReActAgent`:
+
+```python
+from ro_claude_kit_agent_patterns import ReActAgent, Tool
+
+def search_my_docs(query: str) -> str:
+    # Replace with your real search — vector store, full-text, whatever.
+    return my_search_backend.query(query)
+
+search = Tool(
+    name="search",
+    description="Search internal docs for a query.",
+    input_schema={
+        "type": "object",
+        "properties": {"query": {"type": "string"}},
+        "required": ["query"],
+    },
+    handler=search_my_docs,
+)
+
+agent = ReActAgent(
+    system="You are an internal-docs assistant. Search before answering. Cite sources.",
+    tools=[search],
+    max_iterations=5,
+)
+
+result = agent.run("How does our auth flow handle SSO?")
+print(result.output)
+```
+
+## 4. Add hardening
+
+Before `agent.run`, scan input for injection. After, validate output:
+
+```python
+from ro_claude_kit_hardening import InjectionScanner, OutputValidator
+from pydantic import BaseModel
+
+class AnswerWithSource(BaseModel):
+    answer: str
+    source: str
+
+scan = InjectionScanner().scan(user_input)
+if scan.flagged:
+    raise BadInput(scan.hits)
+
+# For structured output, use the validator instead of (or alongside) ReActAgent:
+validator = OutputValidator(output_schema=AnswerWithSource, max_attempts=3)
+parsed = validator.call(system="...", user_message=user_input)
+```
+
+## 5. Add evals
+
+Build a small golden dataset and let an LLM judge score your agent's outputs:
+
+```python
+from ro_claude_kit_eval_suite import EvalSuite, Rubric, GoldenDataset
+
+dataset = GoldenDataset.from_jsonl("./golden.jsonl")
+suite = EvalSuite(
+    rubric=Rubric(criteria=["task_success", "faithfulness", "safety"]),
+    target_runner=lambda case: agent.run(case.input).output,
+)
+report = suite.run(dataset)
+print(report.summary)  # mean per-criterion score
+```
+
+## 6. Try the playground
+
+```bash
+uv run uvicorn app.main:app --port 8000 --app-dir apps/demo
+```
+
+Open `http://localhost:8000` — pick a pattern, send a message, watch the typed trace.
+
+## Next steps
+
+- Read the [Concepts](/concepts/agent-patterns) section to pick the right pattern for your task.
+- Run through the [Production Checklist](/production-checklist) before you ship.

@@ -1,0 +1,38 @@
+{
+  "$schema": "https://mintlify.com/schema.json",
+  "name": "RO-Claude-kit",
+  "colors": {
+    "primary": "#a98467",
+    "light": "#d4a373",
+    "dark": "#8a6a4f"
+  },
+  "topbarLinks": [
+    {
+      "name": "GitHub",
+      "url": "https://github.com/rohithkandula19/RO-Claude-kit"
+    }
+  ],
+  "navigation": [
+    {
+      "group": "Get started",
+      "pages": ["introduction", "quickstart"]
+    },
+    {
+      "group": "Concepts",
+      "pages": [
+        "concepts/agent-patterns",
+        "concepts/evals",
+        "concepts/memory",
+        "concepts/hardening",
+        "concepts/mcp-servers"
+      ]
+    },
+    {
+      "group": "Reference",
+      "pages": ["production-checklist", "adrs"]
+    }
+  ],
+  "footerSocials": {
+    "github": "https://github.com/rohithkandula19/RO-Claude-kit"
+  }
+}

@@ -1,0 +1,70 @@
+---
+title: Architecture decisions
+description: Why each opinionated choice — and what to question if you disagree.
+---
+
+Every opinionated kit is a stack of choices. Here are the load-bearing ones.
+
+## ADR-001 — Python first, TypeScript wrappers second
+
+The agent loop, evals, memory, and hardening live in Python. TypeScript wrappers (where shipped) call into the Python package.
+
+**Why**: most agent infrastructure code (eval frameworks, vector stores, observability) is Python-native. Keeping the brain in Python avoids a polyglot maintenance burden. TS is only needed where the *frontend* lives.
+
+**Question this if**: your team is exclusively TS/Bun and you want a single-language stack.
+
+## ADR-002 — Pydantic for state, plain functions for logic
+
+`ReActAgent`, `EvalSuite`, etc. are Pydantic `BaseModel`s. Tool handlers are plain Python callables.
+
+**Why**: Pydantic gives free serialization, JSON-schema generation for tool args, and validation. But classes-everywhere is overkill — tool handlers stay as functions you can test trivially.
+
+**Question this if**: you're running on a JIT-sensitive hot path. Pydantic v2 is fast but not free.
+
+## ADR-003 — No LangChain / LangGraph dependency
+
+The kit's agent loop is hand-rolled against the Anthropic SDK directly.
+
+**Why**: LangChain is excellent for prototyping, less so for production. Hand-rolling 100 lines of loop is more debuggable than a 10-deep stack of agent abstractions, and we lose nothing by writing it ourselves. Also: if you're shipping a *Claude* kit, building it on top of a competitor's framework is a weird signal.
+
+**Question this if**: you need integrations the Anthropic SDK doesn't expose (a non-Claude model, an exotic memory backend that ships only as a LangChain integration).
+
+## ADR-004 — Read-only by default for every MCP server
+
+None of the MCP server templates expose write methods.
+
+**Why**: write paths need approval gates, audit logs, and idempotency keys. Putting them in a "reference template" gives a false sense that they're safe to copy. Better to make adding writes a deliberate act, gated through `ApprovalGate`.
+
+**Question this if**: you're building an internal admin agent and you've genuinely thought through the audit story.
+
+## ADR-005 — `csk-eval` instead of `csk eval`
+
+The eval CLI is named `csk-eval` (not `csk eval`).
+
+**Why**: until other modules need their own subcommands, a unified `csk` binary is overkill. Each module ships its own CLI prefixed with `csk-`. When a second one shows up, we'll consolidate.
+
+**Question this if**: you're forking this and want a unified CLI on day one. Easy to consolidate — wire `csk` to a `click` group that delegates to per-module commands.
+
+## ADR-006 — Workspace monorepo (uv + pnpm), not separate repos
+
+All packages live in one repo with workspace tooling.
+
+**Why**: the modules cross-reference each other constantly (the demo app uses agent-patterns + hardening; mcp-servers cross-references hardening's `ApprovalGate`). Coordinating versions across 6+ repos is a tax we don't need to pay yet.
+
+**Question this if**: a single module (probably `eval-suite`) gets pulled into a separate product. Then graduate it to its own repo.
+
+## ADR-007 — In-memory default for `LongTermMemory`
+
+The default backend is a Python dict with Jaccard scoring.
+
+**Why**: lets `uv sync` not pull a heavyweight vector store on first install. Tests run without external services. Real production deployments swap in ChromaDB / Pinecone / Weaviate by writing a 30-line backend class.
+
+**Question this if**: you're shipping a demo that needs to "feel" real — install the `chromadb` extra and use that as the default in your fork.
+
+## ADR-008 — Trace as a Pydantic list, not a streaming iterator
+
+Every agent run returns the full `trace` at the end, not a generator.
+
+**Why**: the trace is small (typically <100 entries). Materializing it is fine. A streaming API doubles the surface area (sync + async + iterator + collected). For real-time streaming to a UI, layer that on top — the demo's vanilla JS does exactly this with a single fetch.
+
+**Question this if**: you have agents that run 1,000+ tool calls per request. Then yes, stream.

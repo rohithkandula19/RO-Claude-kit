@@ -1,0 +1,116 @@
+---
+title: Agent patterns
+description: When to use ReAct vs Planner-Executor vs Supervisor vs Reflexion.
+---
+
+`RO-Claude-kit` ships four agent patterns. Picking the wrong one is the single biggest cause of brittle, expensive agents.
+
+## Decision tree
+
+```mermaid
+flowchart TD
+    Start[Task] --> Q1{Multiple distinct sub-tasks<br/>with different tool sets?}
+    Q1 -- Yes --> Supervisor[SupervisorAgent]
+    Q1 -- No --> Q2{Plan first, then execute?}
+    Q2 -- Yes --> PE[PlannerExecutorAgent]
+    Q2 -- No --> Q3{Output quality<br/>matters more than latency?}
+    Q3 -- Yes --> Reflexion[ReflexionAgent]
+    Q3 -- No --> ReAct[ReActAgent]
+```
+
+## ReAct — the default
+
+The classic Reason-Act-Observe loop. The model alternates between reasoning text and tool calls until it decides it's done.
+
+```mermaid
+sequenceDiagram
+    User->>Agent: "How busy were we last quarter?"
+    Agent->>LLM: messages + tools
+    LLM-->>Agent: tool_use(search, "Q3 events")
+    Agent->>Tool: search("Q3 events")
+    Tool-->>Agent: results
+    Agent->>LLM: tool_result + history
+    LLM-->>Agent: text("In Q3 we had...")
+    Agent-->>User: final answer
+```
+
+Pick this when:
+- Single execution thread, no need for parallel sub-agents.
+- Tools are reliable enough that one retry on failure is sufficient.
+- You want the simplest pattern that still survives prod.
+
+## Planner-Executor — for multi-step work
+
+A planner LLM produces a structured plan; an executor runs it step-by-step. If a step fails, the planner can revise (replan).
+
+Pick this when:
+- The task has multiple distinct sub-tasks that benefit from upfront planning.
+- You want checkpoint/resume — completed steps survive a replan.
+- Replanning on failure beats retry-in-place.
+
+The Pydantic-typed `Plan` is your contract:
+
+```python
+class Plan(BaseModel):
+    goal: str
+    steps: list[str]
+```
+
+The planner emits `<plan>{...}</plan>` — explicit tags make parsing reliable.
+
+## Supervisor — heterogeneous sub-agents
+
+An orchestrator delegates to specialist sub-agents via auto-generated `delegate_to_<name>` tools. Each sub-agent has its own system prompt, tools, and (optionally) model.
+
+```mermaid
+flowchart LR
+    User --> Supervisor
+    Supervisor -->|delegate| Researcher
+    Supervisor -->|delegate| Calculator
+    Supervisor -->|delegate| CodeReviewer
+    Researcher -->|search| KB
+    Calculator -->|calc| Sandbox
+    CodeReviewer -->|read| Repo
+```
+
+Pick this when:
+- Sub-tasks have different tool sets or personas.
+- You want failure isolation — one sub-agent erroring doesn't kill the run.
+- Different sub-tasks benefit from different system prompts or models (Opus orchestrator + Haiku workers, for instance).
+
+## Reflexion — for high-quality output
+
+A ReAct agent runs, then a critic LLM evaluates the output. Unacceptable outputs trigger another attempt with the critique fed back as additional context.
+
+```mermaid
+flowchart LR
+    Task --> Agent
+    Agent --> Output
+    Output --> Critic{Acceptable?}
+    Critic -- No --> Feedback
+    Feedback --> Agent
+    Critic -- Yes --> Done
+```
+
+Pick this when:
+- Output quality matters more than latency (code generation, drafting, research).
+- You can articulate what "good" looks like in a critic prompt.
+- First-attempt failures are recoverable with feedback.
+
+Caveat: each attempt is a full agent run, so 3 attempts ≈ 3× the cost. Always cap `max_attempts`.
+
+## Trace contract
+
+Every pattern returns an `AgentResult` with a typed `trace: list[Step]`. Step kinds:
+
+| `kind` | When emitted |
+|---|---|
+| `thought` | Model reasoning text between tool calls |
+| `tool_call` | Each tool invocation, with name + args |
+| `tool_result` | Each tool's return (or error) |
+| `plan` | The structured plan (Planner-Executor only) |
+| `reflection` | Critic verdict (Reflexion only) |
+| `final` | The final answer |
+| `error` | Recoverable errors (unknown tool, sub-agent crash) |
+
+Pipe the trace into [Langfuse](https://langfuse.com), store it in your DB, or render it in your demo UI.

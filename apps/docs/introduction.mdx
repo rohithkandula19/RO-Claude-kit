@@ -1,0 +1,43 @@
+---
+title: Introduction
+description: An opinionated reference implementation for shipping production Claude agents in a weekend.
+---
+
+`RO-Claude-kit` is the agent-builder starter pack for AI-native startups. It bundles the patterns, evals, memory, MCP integrations, and hardening that every team ends up rebuilding — and bakes them into a fork-and-ship monorepo.
+
+Think `create-next-app` for Claude agents.
+
+## Why it exists
+
+Most Claude agents in the wild fail in the same ways:
+
+- **No evals.** "It seemed to work in our demo" is not a release criterion.
+- **Brittle tool use.** One bad arg, one rate limit, and the agent crashes the loop.
+- **Prompt-injection foot-guns.** User input flows straight into a tool-calling planner.
+- **No memory strategy.** Conversation history just accumulates until the context window dies.
+- **No observability.** When prod breaks, you're reading raw token streams.
+
+The kit ships opinionated, batteries-included modules for each. You spend your weekend building the *interesting* part of your product.
+
+## What's in the box
+
+| Module | What it does |
+|---|---|
+| `agent-patterns` | ReAct, Planner-Executor, Multi-Agent Supervisor, Reflexion |
+| `eval-suite` | LLM-as-a-judge with golden datasets, drift detection, HTML reports |
+| `memory` | Short-term (compressed history) + long-term (vector store) + user preferences |
+| `mcp-servers` | Read-only Postgres / Stripe / Linear / Slack / Notion templates |
+| `hardening` | Prompt-injection scanner, tool allowlist, approval gates, output validator |
+| `deployment-templates` | One-click deploys for Vercel, Railway, Modal, Docker Compose |
+
+Plus `apps/demo` — an interactive AgentLab playground showing all four patterns side-by-side.
+
+## Who it's for
+
+- AI-native startup founders who need a working agent in production this month, not next quarter.
+- Engineers who've shipped a chatbot demo and now need to make it survive real users.
+- Teams evaluating Claude for an agentic product who want a credible reference implementation.
+
+## Try it
+
+<a href="/quickstart">Quickstart →</a>

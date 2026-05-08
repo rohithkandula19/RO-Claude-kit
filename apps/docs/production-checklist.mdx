@@ -1,0 +1,65 @@
+---
+title: Production checklist
+description: What you need before shipping a Claude agent to real users.
+---
+
+If you can't check every box, you're not ready. No exceptions.
+
+## Reliability
+
+- [ ] **Iteration cap on every loop.** No agent should be able to call a tool 100 times. `ReActAgent(max_iterations=N)` with N <= 10 in most cases.
+- [ ] **Tool error tolerance.** Tool exceptions are surfaced as `is_error=True` to the model, not crashes. The model decides what to do.
+- [ ] **Timeout on every external call.** httpx default `timeout=30` is in our templates — don't remove it.
+- [ ] **Retry budget per tool, not per agent run.** Otherwise one flaky tool burns the whole iteration cap.
+
+## Safety
+
+- [ ] **Prompt-injection scan on every untrusted input.** `InjectionScanner().scan(user_input)`.
+- [ ] **Tool allowlist enforced at dispatch.** Even if the LLM hallucinates a tool name, you don't dispatch it.
+- [ ] **Approval gates on writes / money / deletions.** No bot autonomously charges a card.
+- [ ] **Output validation for structured results.** Pydantic + retry-with-error-feedback.
+- [ ] **System-prompt leak scan on responses.** `OutputLeakScanner` if your prompt contains sensitive instructions.
+
+## Evals
+
+- [ ] **Golden dataset of >= 30 cases**, covering happy paths, edge cases, and adversarial inputs.
+- [ ] **Rubric with at least task_success, faithfulness, and safety.**
+- [ ] **CI gate that fails on regression** beyond a threshold (e.g. -0.5 in any criterion). `csk-eval drift`.
+- [ ] **Production sampling** — even 1% of prod traffic scored continuously catches regressions staging would miss.
+
+## Observability
+
+- [ ] **Trace every agent step.** TraceEmitter into Langfuse / Helicone / your DB.
+- [ ] **PII redaction before traces hit the sink.** Default in `TraceEmitter`, but verify with extra patterns for your domain.
+- [ ] **Token-usage metric per request.** Tag by user, agent type, model.
+- [ ] **Latency budget alarm.** P95 > Xms pages someone.
+
+## Memory
+
+- [ ] **Short-term compression configured.** Don't ship without `maybe_compress()` wired in.
+- [ ] **Long-term store has user namespacing.** No cross-user leaks.
+- [ ] **Memory persistence outside the process.** A crashed worker shouldn't lose state mid-conversation.
+
+## Cost
+
+- [ ] **Per-user / per-tenant rate limit.** Not just at your API edge — at the agent loop too.
+- [ ] **Daily / monthly cap with alerting.** A bug that triple-loops Opus calls can run up real bills overnight.
+- [ ] **Pick the cheapest model that hits your eval bar.** Sonnet > Opus for most tasks. Don't default to Opus.
+
+## Deployment
+
+- [ ] **Secrets in env vars, never in code.** `.env.example` checked in, real `.env` gitignored.
+- [ ] **Healthcheck endpoint that actually checks things** — Anthropic API reachability, DB connection. Not just `return {"ok": True}`.
+- [ ] **Restart policy on failure** — `railway.json`, `docker-compose` `restart: unless-stopped`.
+- [ ] **One-line rollback plan.** A previous build is one click away.
+
+## What this kit does NOT give you
+
+Be honest with yourself: the kit handles a lot, but not these. Plan for them:
+
+- **Auth & user identity** — bring Clerk / Supabase / Auth0.
+- **Billing** — Stripe Billing or similar.
+- **Account / team management** — your own tables.
+- **Compliance** — SOC2, HIPAA, GDPR data deletion paths. Lawyer first, code second.
+
+The kit's job is to make the *agentic* parts of your product credible. The rest is a normal SaaS stack.
