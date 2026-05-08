@@ -1,0 +1,2 @@
+ro-claude-kit-agent-patterns>=0.0.1
+ro-claude-kit-hardening>=0.0.1

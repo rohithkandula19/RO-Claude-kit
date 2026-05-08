@@ -1,0 +1,50 @@
+# Local dev stack for a Claude agent built with RO-Claude-kit.
+# Runs:
+#   - Postgres (so the agent can be wired to a real DB via the Postgres MCP server)
+#   - The agent app itself, with hot-reload
+#
+# Usage:
+#   cp .env.example .env       # fill in ANTHROPIC_API_KEY
+#   docker compose up --build
+#
+# The agent service expects a Python entrypoint at app.main:app (FastAPI by default).
+# Adjust CMD / context for your app.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: agent
+      POSTGRES_PASSWORD: agent
+      POSTGRES_DB: agent
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agent"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      DATABASE_URL: postgres://agent:agent@postgres:5432/agent
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      # Mount source for hot-reload during dev. Remove for prod images.
+      - ./app:/app/app
+
+volumes:
+  postgres_data:
