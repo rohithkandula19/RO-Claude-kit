@@ -70,14 +70,20 @@ RO-Claude-kit/
 
 ## Status
 
-`v0.0.1` — under construction, building in public. Following a [4-week build plan](https://github.com/rohithkandula19/RO-Claude-kit) with one module landing per week.
+`v0.0.1` — under construction, building in public.
 
-| Week | Modules |
-|---|---|
-| 1 | `agent-patterns` |
-| 2 | `eval-suite`, `memory`, `mcp-servers` |
-| 3 | `hardening`, `deployment-templates`, demo app |
-| 4 | Docs, video walkthrough, public launch |
+| Module | Status | Tests |
+|---|---|---|
+| `agent-patterns` | ✅ shipped | 11 |
+| `eval-suite` | ✅ shipped | 11 |
+| `memory` | ✅ shipped | 11 |
+| `hardening` | ✅ shipped | 20 |
+| `mcp-servers` | 🟡 Postgres shipped; Stripe/Linear/Slack/Notion planned | 20 |
+| `deployment-templates` | 🚧 planned |  |
+| `apps/demo` (AgentLab) | 🚧 planned |  |
+| `apps/docs` | 🚧 planned |  |
+
+73 tests across the shipped modules, all passing on every push (see CI).
 
 ## License
 
