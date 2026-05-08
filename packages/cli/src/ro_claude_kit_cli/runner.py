@@ -14,6 +14,7 @@ from ro_claude_kit_agent_patterns import ReActAgent, Tool
 from ro_claude_kit_hardening import InjectionScanner
 
 from .config import CSKConfig
+from .demo_brain import demo_answer
 from .tools import build_tools
 
 
@@ -57,8 +58,18 @@ def _build_agent(config: CSKConfig, tools: list[Tool]) -> ReActAgent:
     )
 
 
+def _has_real_anthropic_key(config: CSKConfig) -> bool:
+    return bool(config.anthropic_api_key or os.environ.get("ANTHROPIC_API_KEY"))
+
+
 def run_ask(config: CSKConfig, question: str, *, console: Console | None = None) -> AgentResultRich:
-    """One-shot agent invocation. Shows a spinner while Claude is thinking (when console given)."""
+    """One-shot agent invocation.
+
+    Three modes:
+    - real key + real config: full Claude + real services
+    - real key + demo config: full Claude + in-process demo data
+    - no key + demo config: offline keyword-router 'demo brain' (no Claude)
+    """
     scan = InjectionScanner().scan(question)
     if scan.flagged:
         return AgentResultRich(
@@ -70,8 +81,21 @@ def run_ask(config: CSKConfig, question: str, *, console: Console | None = None)
         )
 
     tools = build_tools(config)
-    agent = _build_agent(config, tools)
 
+    # Offline demo path — no Claude required.
+    if config.demo_mode and not _has_real_anthropic_key(config):
+        result = demo_answer(question, tools)
+        return AgentResultRich(
+            success=result.success,
+            output=result.output,
+            iterations=result.iterations,
+            trace=_serialize_trace(result.trace),
+            usage={},
+            error=result.error,
+            demo_mode=True,
+        )
+
+    agent = _build_agent(config, tools)
     if console is not None:
         with Live(Spinner("dots", text="[cyan]thinking…[/cyan]"), console=console, refresh_per_second=10):
             result = agent.run(question)
