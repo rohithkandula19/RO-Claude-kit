@@ -19,12 +19,26 @@ PROJECT_DIR = Path(".csk")
 USER_DIR = Path.home() / ".config" / "csk"
 
 
+PROVIDER_PRESETS: dict[str, dict[str, str]] = {
+    "anthropic": {"model": "claude-sonnet-4-6", "base_url": ""},
+    "ollama": {"model": "llama3.1", "base_url": "http://localhost:11434/v1"},
+    "openai": {"model": "gpt-4o-mini", "base_url": "https://api.openai.com/v1"},
+    "together": {"model": "meta-llama/Llama-3.3-70B-Instruct-Turbo", "base_url": "https://api.together.xyz/v1"},
+    "groq": {"model": "llama-3.3-70b-versatile", "base_url": "https://api.groq.com/openai/v1"},
+    "fireworks": {"model": "accounts/fireworks/models/llama-v3p3-70b-instruct", "base_url": "https://api.fireworks.ai/inference/v1"},
+}
+
+
 class CSKConfig(BaseModel):
     """csk configuration. Each service is optional — only configured ones get tools registered."""
 
     demo_mode: bool = False
+    provider: str = "anthropic"  # anthropic | ollama | openai | together | groq | fireworks | custom
+    model: str | None = None  # None → use the preset default for the chosen provider
+    base_url: str | None = None  # required for 'custom'; optional override otherwise
+
     anthropic_api_key: str | None = None
-    model: str = "claude-sonnet-4-6"
+    openai_api_key: str | None = None  # used for openai/together/groq/fireworks/custom
 
     stripe_api_key: str | None = None
     linear_api_key: str | None = None
@@ -34,6 +48,17 @@ class CSKConfig(BaseModel):
     database_url: str | None = None
 
     extra: dict[str, Any] = Field(default_factory=dict)
+
+    def resolved_model(self) -> str:
+        if self.model:
+            return self.model
+        return PROVIDER_PRESETS.get(self.provider, {}).get("model", "claude-sonnet-4-6")
+
+    def resolved_base_url(self) -> str | None:
+        if self.base_url:
+            return self.base_url
+        preset = PROVIDER_PRESETS.get(self.provider, {}).get("base_url", "")
+        return preset or None
 
     def configured_services(self) -> list[str]:
         """Names of services that have credentials set (or are available in demo mode)."""
@@ -52,8 +77,20 @@ class CSKConfig(BaseModel):
             services.append("postgres")
         return services
 
+    def has_provider_auth(self) -> bool:
+        """Returns True iff the chosen provider has the credentials it needs."""
+        if self.demo_mode:
+            return True
+        if self.provider == "anthropic":
+            return bool(self.anthropic_api_key or os.environ.get("ANTHROPIC_API_KEY"))
+        if self.provider == "ollama":
+            return True  # local server, no auth
+        # openai-compat needs a key
+        return bool(self.openai_api_key or os.environ.get("OPENAI_API_KEY"))
+
+    # Backward-compat alias used by older code paths.
     def has_anthropic_auth(self) -> bool:
-        return self.demo_mode or bool(self.anthropic_api_key or os.environ.get("ANTHROPIC_API_KEY"))
+        return self.has_provider_auth()
 
 
 def find_config_path() -> Path | None:
@@ -83,6 +120,7 @@ def load_config() -> CSKConfig:
     # env override
     env_overrides = {
         "anthropic_api_key": os.environ.get("ANTHROPIC_API_KEY"),
+        "openai_api_key": os.environ.get("OPENAI_API_KEY"),
         "stripe_api_key": os.environ.get("STRIPE_API_KEY"),
         "linear_api_key": os.environ.get("LINEAR_API_KEY"),
         "slack_bot_token": os.environ.get("SLACK_BOT_TOKEN"),

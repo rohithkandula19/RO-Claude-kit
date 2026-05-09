@@ -1,19 +1,21 @@
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+import pytest
 
-from ro_claude_kit_agent_patterns import ReActAgent, Tool
-
-from conftest import make_block, make_response
+from ro_claude_kit_agent_patterns import (
+    FakeProvider,
+    LLMResponse,
+    ReActAgent,
+    Tool,
+    ToolCall,
+)
 
 
 def test_react_no_tools_returns_immediately() -> None:
-    fake_client = MagicMock()
-    fake_client.messages.create.return_value = make_response(
-        "end_turn", [make_block("text", text="Hello!")]
-    )
-    with patch("ro_claude_kit_agent_patterns.react.make_client", return_value=fake_client):
-        result = ReActAgent(system="be helpful").run("hi")
+    provider = FakeProvider(responses=[
+        LLMResponse(text="Hello!", stop_reason="end_turn", usage={"input_tokens": 10, "output_tokens": 5}),
+    ])
+    result = ReActAgent(system="be helpful", provider=provider).run("hi")
 
     assert result.success
     assert "Hello" in result.output
@@ -35,13 +37,15 @@ def test_react_calls_tool_then_finishes() -> None:
         handler=calc,
     )
 
-    fake_client = MagicMock()
-    fake_client.messages.create.side_effect = [
-        make_response("tool_use", [make_block("tool_use", name="calc", input={"expression": "6*7"}, id="t1")]),
-        make_response("end_turn", [make_block("text", text="The answer is 42.")]),
-    ]
-    with patch("ro_claude_kit_agent_patterns.react.make_client", return_value=fake_client):
-        result = ReActAgent(system="...", tools=[tool]).run("what is 6*7?")
+    provider = FakeProvider(responses=[
+        LLMResponse(
+            text="",
+            tool_calls=[ToolCall(id="t1", name="calc", arguments={"expression": "6*7"})],
+            stop_reason="tool_use",
+        ),
+        LLMResponse(text="The answer is 42.", stop_reason="end_turn"),
+    ])
+    result = ReActAgent(system="...", tools=[tool], provider=provider).run("what is 6*7?")
 
     assert result.success
     assert calls == ["6*7"]
@@ -53,19 +57,22 @@ def test_react_calls_tool_then_finishes() -> None:
 
 
 def test_react_iteration_cap() -> None:
-    """Tool-use loop that never ends should fail with iteration cap."""
     tool = Tool(
         name="loop",
         description="loops",
         input_schema={"type": "object", "properties": {}},
         handler=lambda: "more",
     )
-    fake_client = MagicMock()
-    fake_client.messages.create.return_value = make_response(
-        "tool_use", [make_block("tool_use", name="loop", input={}, id="t")]
-    )
-    with patch("ro_claude_kit_agent_patterns.react.make_client", return_value=fake_client):
-        result = ReActAgent(system="...", tools=[tool], max_iterations=3).run("loop forever")
+    # Endless tool-use loop
+    provider = FakeProvider(responses=[
+        LLMResponse(
+            text="",
+            tool_calls=[ToolCall(id=f"t{i}", name="loop", arguments={})],
+            stop_reason="tool_use",
+        )
+        for i in range(10)
+    ])
+    result = ReActAgent(system="...", tools=[tool], provider=provider, max_iterations=3).run("loop forever")
 
     assert not result.success
     assert "max_iterations" in (result.error or "")
@@ -73,13 +80,15 @@ def test_react_iteration_cap() -> None:
 
 
 def test_react_unknown_tool_does_not_crash() -> None:
-    fake_client = MagicMock()
-    fake_client.messages.create.side_effect = [
-        make_response("tool_use", [make_block("tool_use", name="ghost", input={}, id="t1")]),
-        make_response("end_turn", [make_block("text", text="ok done")]),
-    ]
-    with patch("ro_claude_kit_agent_patterns.react.make_client", return_value=fake_client):
-        result = ReActAgent(system="...", tools=[]).run("call ghost")
+    provider = FakeProvider(responses=[
+        LLMResponse(
+            text="",
+            tool_calls=[ToolCall(id="t1", name="ghost", arguments={})],
+            stop_reason="tool_use",
+        ),
+        LLMResponse(text="ok done", stop_reason="end_turn"),
+    ])
+    result = ReActAgent(system="...", tools=[], provider=provider).run("call ghost")
 
     assert result.success
     errors = [s for s in result.trace if s.kind == "error"]
@@ -96,15 +105,40 @@ def test_react_tool_exception_surfaces_as_error() -> None:
         input_schema={"type": "object", "properties": {}},
         handler=boom,
     )
-    fake_client = MagicMock()
-    fake_client.messages.create.side_effect = [
-        make_response("tool_use", [make_block("tool_use", name="boom", input={}, id="t1")]),
-        make_response("end_turn", [make_block("text", text="recovered")]),
-    ]
-    with patch("ro_claude_kit_agent_patterns.react.make_client", return_value=fake_client):
-        result = ReActAgent(system="...", tools=[tool]).run("call boom")
+    provider = FakeProvider(responses=[
+        LLMResponse(
+            text="",
+            tool_calls=[ToolCall(id="t1", name="boom", arguments={})],
+            stop_reason="tool_use",
+        ),
+        LLMResponse(text="recovered", stop_reason="end_turn"),
+    ])
+    result = ReActAgent(system="...", tools=[tool], provider=provider).run("call boom")
 
     assert result.success
     tool_results = [s for s in result.trace if s.kind == "tool_result"]
     assert tool_results and tool_results[0].content["is_error"] is True
     assert "kaboom" in tool_results[0].content["result"]
+
+
+def test_react_provider_receives_assistant_messages_with_tool_calls() -> None:
+    """After a tool call, the next provider invocation should see the assistant's tool_calls
+    and the tool's response message in the conversation history."""
+    tool = Tool(
+        name="echo",
+        description="echo",
+        input_schema={"type": "object", "properties": {"v": {"type": "string"}}, "required": ["v"]},
+        handler=lambda v: v,
+    )
+    provider = FakeProvider(responses=[
+        LLMResponse(text="", tool_calls=[ToolCall(id="t1", name="echo", arguments={"v": "yo"})], stop_reason="tool_use"),
+        LLMResponse(text="echoed", stop_reason="end_turn"),
+    ])
+    ReActAgent(system="...", tools=[tool], provider=provider).run("echo yo")
+
+    assert len(provider.calls) == 2
+    second_call_messages = provider.calls[1]["messages"]
+    roles = [m["role"] for m in second_call_messages]
+    assert roles == ["user", "assistant", "tool"]
+    assert second_call_messages[1]["tool_calls"][0]["name"] == "echo"
+    assert second_call_messages[2]["content"] == "yo"

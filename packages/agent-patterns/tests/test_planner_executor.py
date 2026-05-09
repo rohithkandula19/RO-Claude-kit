@@ -1,10 +1,6 @@
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
-
-from ro_claude_kit_agent_patterns import PlannerExecutorAgent
-
-from conftest import make_block, make_response
+from ro_claude_kit_agent_patterns import FakeProvider, LLMResponse, PlannerExecutorAgent
 
 
 def test_planner_executor_happy_path() -> None:
@@ -14,19 +10,16 @@ def test_planner_executor_happy_path() -> None:
         '{"goal": "greet user", "steps": ["say hello"]}\n'
         "</plan>"
     )
-    planner_response = make_response("end_turn", [make_block("text", text=plan_text)])
-    executor_response = make_response("end_turn", [make_block("text", text="hello!")])
-
-    fake_client = MagicMock()
-    fake_client.messages.create.side_effect = [planner_response, executor_response]
-
-    with patch("ro_claude_kit_agent_patterns.planner_executor.make_client", return_value=fake_client), \
-         patch("ro_claude_kit_agent_patterns.react.make_client", return_value=fake_client):
-        agent = PlannerExecutorAgent(
-            planner_system="plan things",
-            executor_system="execute things",
-        )
-        result = agent.run("greet the user")
+    provider = FakeProvider(responses=[
+        LLMResponse(text=plan_text, stop_reason="end_turn"),
+        LLMResponse(text="hello!", stop_reason="end_turn"),
+    ])
+    agent = PlannerExecutorAgent(
+        planner_system="plan",
+        executor_system="execute",
+        provider=provider,
+    )
+    result = agent.run("greet the user")
 
     assert result.success
     plan_steps = [s for s in result.trace if s.kind == "plan"]
@@ -34,17 +27,16 @@ def test_planner_executor_happy_path() -> None:
 
 
 def test_planner_executor_missing_plan_tags_fails_clearly() -> None:
-    bad_response = make_response("end_turn", [make_block("text", text="here you go")])
-    fake_client = MagicMock()
-    fake_client.messages.create.return_value = bad_response
-
-    with patch("ro_claude_kit_agent_patterns.planner_executor.make_client", return_value=fake_client):
-        agent = PlannerExecutorAgent(
-            planner_system="plan",
-            executor_system="exec",
-            max_replans=0,
-        )
-        result = agent.run("do something")
+    provider = FakeProvider(responses=[
+        LLMResponse(text="here you go", stop_reason="end_turn"),
+    ])
+    agent = PlannerExecutorAgent(
+        planner_system="plan",
+        executor_system="exec",
+        max_replans=0,
+        provider=provider,
+    )
+    result = agent.run("do something")
 
     assert not result.success
     assert "plan" in (result.error or "").lower()

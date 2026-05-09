@@ -22,7 +22,7 @@ from rich.prompt import Confirm, Prompt
 from rich.table import Table
 
 from . import __version__
-from .config import CSKConfig, find_config_path, load_config, save_config
+from .config import PROVIDER_PRESETS, CSKConfig, find_config_path, load_config, save_config
 from .runner import AgentResultRich, run_ask, start_chat
 from .tools import build_tools
 
@@ -63,13 +63,41 @@ def init(
         return
 
     console.print(Panel.fit(
-        "[bold]csk init[/bold] — set up credentials for the services you want Claude to query.\n"
-        "[dim]Press enter to skip any service. Values are stored in plaintext in .csk/config.toml — "
-        ".gitignore that path.[/dim]",
+        "[bold]csk init[/bold] — pick an LLM provider, then add credentials for the services "
+        "you want it to query.\n[dim]Values are stored in plaintext at .csk/config.toml — .gitignore "
+        "that path.[/dim]",
         border_style="cyan",
     ))
 
-    anthropic = Prompt.ask("ANTHROPIC_API_KEY", default=os.environ.get("ANTHROPIC_API_KEY") or "", password=True)
+    provider_choice = Prompt.ask(
+        "LLM provider",
+        choices=["anthropic", "ollama", "openai", "together", "groq", "fireworks", "custom"],
+        default="anthropic",
+    )
+    preset = PROVIDER_PRESETS.get(provider_choice, {})
+    model = Prompt.ask("Model", default=preset.get("model") or "")
+    base_url: str | None = None
+    if provider_choice == "custom":
+        base_url = Prompt.ask("OpenAI-compatible base URL")
+    elif provider_choice not in ("anthropic", "ollama"):
+        base_url = preset.get("base_url") or ""
+
+    anthropic_key: str | None = None
+    openai_key: str | None = None
+    if provider_choice == "anthropic":
+        anthropic_key = Prompt.ask(
+            "ANTHROPIC_API_KEY",
+            default=os.environ.get("ANTHROPIC_API_KEY") or "",
+            password=True,
+        ) or None
+    elif provider_choice != "ollama":
+        openai_key = Prompt.ask(
+            f"API key for {provider_choice}",
+            default=os.environ.get("OPENAI_API_KEY") or "",
+            password=True,
+        ) or None
+
+    console.print()
     stripe = Prompt.ask("Stripe API key (rk_live_... recommended)", default="", password=True)
     linear = Prompt.ask("Linear API key", default="", password=True)
     slack_bot = Prompt.ask("Slack bot token (xoxb-...)", default="", password=True)
@@ -77,7 +105,11 @@ def init(
     database_url = Prompt.ask("Postgres DATABASE_URL", default="")
 
     cfg = CSKConfig(
-        anthropic_api_key=anthropic or None,
+        provider=provider_choice,
+        model=model or None,
+        base_url=base_url or None,
+        anthropic_api_key=anthropic_key,
+        openai_api_key=openai_key,
         stripe_api_key=stripe or None,
         linear_api_key=linear or None,
         slack_bot_token=slack_bot or None,
@@ -87,7 +119,8 @@ def init(
     path = save_config(cfg, scope=scope)
     console.print(f"\n[green]✓[/green] Wrote config to [cyan]{path}[/cyan]")
     services = cfg.configured_services()
-    console.print(f"[dim]Configured services:[/dim] {', '.join(services) if services else '[red]none[/red]'}")
+    console.print(f"[dim]provider:[/dim] {provider_choice} ({cfg.resolved_model()})")
+    console.print(f"[dim]configured services:[/dim] {', '.join(services) if services else '[red]none[/red]'}")
 
 
 # ---------- ask ----------
@@ -99,10 +132,10 @@ def ask(
 ) -> None:
     """One-shot: send a question to Claude with your configured tools, print answer + trace."""
     config = load_config()
-    if not config.has_anthropic_auth():
+    if not config.has_provider_auth():
         console.print(
-            "[red]✗[/red] No Anthropic credentials. Run [bold]csk init[/bold] (or [bold]csk init --demo[/bold]) first, "
-            "or set [bold]ANTHROPIC_API_KEY[/bold]."
+            f"[red]✗[/red] No credentials for provider [bold]{config.provider}[/bold]. "
+            "Run [bold]csk init[/bold] (or [bold]csk init --demo[/bold]) first."
         )
         raise typer.Exit(2)
 
@@ -119,8 +152,8 @@ def chat(
 ) -> None:
     """Multi-turn REPL with short-term memory. Type :q or Ctrl-D to exit."""
     config = load_config()
-    if not config.has_anthropic_auth():
-        console.print("[red]✗[/red] Run [bold]csk init[/bold] first or set [bold]ANTHROPIC_API_KEY[/bold].")
+    if not config.has_provider_auth():
+        console.print(f"[red]✗[/red] No credentials for provider [bold]{config.provider}[/bold]. Run [bold]csk init[/bold] first.")
         raise typer.Exit(2)
 
     console.print(Panel.fit(
@@ -171,13 +204,16 @@ def doctor() -> None:
 
     table.add_row("config file", str(path) if path else "[red]none[/red] — run csk init")
     table.add_row("demo mode", "[green]yes[/green]" if config.demo_mode else "[dim]no[/dim]")
+    table.add_row("provider", config.provider)
+    table.add_row("model", config.resolved_model())
+    if config.resolved_base_url():
+        table.add_row("base_url", config.resolved_base_url() or "")
     table.add_row(
-        "Anthropic auth",
-        "[green]ok[/green]" if config.has_anthropic_auth() else "[red]missing[/red]",
+        f"{config.provider} auth",
+        "[green]ok[/green]" if config.has_provider_auth() else "[red]missing[/red]",
     )
     services = config.configured_services()
     table.add_row("services", ", ".join(services) if services else "[red]none[/red]")
-    table.add_row("model", config.model)
     table.add_row("csk version", __version__)
 
     console.print(table)

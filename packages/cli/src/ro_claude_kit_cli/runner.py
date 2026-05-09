@@ -1,4 +1,4 @@
-"""Agent execution glue — wraps ReActAgent + the configured tool set."""
+"""Agent execution glue — wraps ReActAgent + the configured tool set + the configured LLM provider."""
 from __future__ import annotations
 
 import os
@@ -10,7 +10,13 @@ from rich.console import Console
 from rich.live import Live
 from rich.spinner import Spinner
 
-from ro_claude_kit_agent_patterns import ReActAgent, Tool
+from ro_claude_kit_agent_patterns import (
+    AnthropicProvider,
+    LLMProvider,
+    OpenAICompatProvider,
+    ReActAgent,
+    Tool,
+)
 from ro_claude_kit_hardening import InjectionScanner
 
 from .config import CSKConfig
@@ -45,30 +51,58 @@ def _serialize_trace(trace: list) -> list[dict[str, Any]]:
     return [{"kind": s.kind, "content": s.content} for s in trace]
 
 
-def _build_agent(config: CSKConfig, tools: list[Tool]) -> ReActAgent:
-    services = config.configured_services()
-    system = SYSTEM_PROMPT_TEMPLATE.format(services=", ".join(services) or "none")
-    api_key = config.anthropic_api_key or os.environ.get("ANTHROPIC_API_KEY")
-    return ReActAgent(
-        system=system,
-        tools=tools,
-        model=config.model,
-        max_iterations=8,
+def build_provider(config: CSKConfig) -> LLMProvider:
+    """Construct the LLMProvider for this config.
+
+    - ``anthropic`` → ``AnthropicProvider``
+    - everything else (``ollama``, ``openai``, ``together``, ``groq``, ``fireworks``,
+      ``custom``) → ``OpenAICompatProvider`` with the right ``base_url``.
+    """
+    model = config.resolved_model()
+    base_url = config.resolved_base_url()
+
+    if config.provider == "anthropic":
+        return AnthropicProvider(
+            model=model,
+            api_key=config.anthropic_api_key or os.environ.get("ANTHROPIC_API_KEY"),
+        )
+
+    api_key = config.openai_api_key or os.environ.get("OPENAI_API_KEY")
+    if config.provider == "ollama" and not api_key:
+        api_key = "ollama"  # local; placeholder header
+    return OpenAICompatProvider(
+        model=model,
+        base_url=base_url or "https://api.openai.com/v1",
         api_key=api_key,
     )
 
 
-def _has_real_anthropic_key(config: CSKConfig) -> bool:
-    return bool(config.anthropic_api_key or os.environ.get("ANTHROPIC_API_KEY"))
+def _has_real_provider_key(config: CSKConfig) -> bool:
+    if config.provider == "anthropic":
+        return bool(config.anthropic_api_key or os.environ.get("ANTHROPIC_API_KEY"))
+    if config.provider == "ollama":
+        return True
+    return bool(config.openai_api_key or os.environ.get("OPENAI_API_KEY"))
+
+
+def _build_agent(config: CSKConfig, tools: list[Tool]) -> ReActAgent:
+    services = config.configured_services()
+    system = SYSTEM_PROMPT_TEMPLATE.format(services=", ".join(services) or "none")
+    provider = build_provider(config)
+    return ReActAgent(
+        system=system,
+        tools=tools,
+        provider=provider,
+        max_iterations=8,
+    )
 
 
 def run_ask(config: CSKConfig, question: str, *, console: Console | None = None) -> AgentResultRich:
     """One-shot agent invocation.
 
-    Three modes:
-    - real key + real config: full Claude + real services
-    - real key + demo config: full Claude + in-process demo data
-    - no key + demo config: offline keyword-router 'demo brain' (no Claude)
+    Modes:
+    - Real key + any config: real provider + (real services or demo data).
+    - No key + demo config: offline keyword-router 'demo brain' (no LLM call).
     """
     scan = InjectionScanner().scan(question)
     if scan.flagged:
@@ -82,8 +116,7 @@ def run_ask(config: CSKConfig, question: str, *, console: Console | None = None)
 
     tools = build_tools(config)
 
-    # Offline demo path — no Claude required.
-    if config.demo_mode and not _has_real_anthropic_key(config):
+    if config.demo_mode and not _has_real_provider_key(config):
         result = demo_answer(question, tools)
         return AgentResultRich(
             success=result.success,
@@ -114,15 +147,11 @@ def run_ask(config: CSKConfig, question: str, *, console: Console | None = None)
 
 
 def start_chat(config: CSKConfig, *, console: Console, raw: bool = False) -> None:
-    """Interactive REPL. Memory is in-process — exit and you start fresh."""
     from ro_claude_kit_memory import ShortTermMemory
 
     memory = ShortTermMemory(keep_recent=8, compress_threshold_tokens=6000)
     tools = build_tools(config)
     agent = _build_agent(config, tools)
-    api_key = config.anthropic_api_key or os.environ.get("ANTHROPIC_API_KEY")
-    if api_key is not None:
-        agent.api_key = api_key
 
     while True:
         try:

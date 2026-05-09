@@ -5,38 +5,40 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-from .base import DEFAULT_MODEL, make_client, text_from_response
+from .providers import AnthropicProvider, LLMProvider, Message
 from .react import ReActAgent
 from .types import AgentResult, Step, Tool
 
 
 class Plan(BaseModel):
-    """Structured plan produced by the planner LLM."""
-
     goal: str
     steps: list[str]
 
 
 class PlannerExecutorAgent(BaseModel):
-    """Two-phase agent: planner emits a structured plan, executor runs it step-by-step.
-
-    Pick this when:
-    - The task has multiple distinct sub-tasks that benefit from upfront planning.
-    - You want checkpoint/resume — completed steps survive a replan.
-    - Replanning on failure beats retry-in-place.
-    """
+    """Two-phase agent: planner emits a structured plan, executor runs it step-by-step."""
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     planner_system: str
     executor_system: str
     tools: list[Tool] = Field(default_factory=list)
-    model: str = DEFAULT_MODEL
+    provider: LLMProvider | None = None
     max_replans: int = 1
+
+    # Backward-compat:
+    model: str | None = None
     api_key: str | None = None
 
+    def model_post_init(self, _ctx: object) -> None:
+        if self.provider is None:
+            self.provider = AnthropicProvider(
+                model=self.model or "claude-sonnet-4-6",
+                api_key=self.api_key,
+            )
+
     def _make_plan(self, task: str, prior_failure: str | None) -> Plan:
-        client = make_client(self.api_key)
+        assert self.provider is not None
         prompt = f"Task: {task}\n\n"
         if prior_failure:
             prompt += (
@@ -48,16 +50,15 @@ class PlannerExecutorAgent(BaseModel):
             "and 'steps' (list of concise step descriptions). "
             "Wrap the JSON in <plan></plan> tags."
         )
-        response = client.messages.create(
-            model=self.model,
+        response = self.provider.complete(
             system=self.planner_system,
-            messages=[{"role": "user", "content": prompt}],
+            messages=[Message(role="user", content=prompt)],
+            tools=[],
             max_tokens=2048,
         )
-        text = text_from_response(response)
-        match = re.search(r"<plan>(.*?)</plan>", text, re.DOTALL)
+        match = re.search(r"<plan>(.*?)</plan>", response.text, re.DOTALL)
         if not match:
-            raise ValueError(f"Planner did not emit <plan></plan>: {text[:200]}")
+            raise ValueError(f"Planner did not emit <plan></plan>: {response.text[:200]}")
         try:
             return Plan.model_validate_json(match.group(1).strip())
         except ValidationError as exc:
@@ -74,11 +75,9 @@ class PlannerExecutorAgent(BaseModel):
             except Exception as exc:  # noqa: BLE001
                 trace.append(Step(kind="error", content=f"plan failed: {exc}"))
                 return AgentResult(
-                    success=False,
-                    output="",
+                    success=False, output="",
                     iterations=replan_idx + 1,
-                    trace=trace,
-                    error=str(exc),
+                    trace=trace, error=str(exc),
                 )
             trace.append(Step(kind="plan", content=plan.model_dump()))
 
@@ -86,8 +85,7 @@ class PlannerExecutorAgent(BaseModel):
             executor = ReActAgent(
                 system=self.executor_system,
                 tools=self.tools,
-                model=self.model,
-                api_key=self.api_key,
+                provider=self.provider,
             )
 
             failed = False
@@ -110,15 +108,12 @@ class PlannerExecutorAgent(BaseModel):
                 final = f"Goal '{plan.goal}' achieved across {len(completed)} steps."
                 trace.append(Step(kind="final", content=final))
                 return AgentResult(
-                    success=True,
-                    output=final,
-                    iterations=replan_idx + 1,
-                    trace=trace,
+                    success=True, output=final,
+                    iterations=replan_idx + 1, trace=trace,
                 )
 
         return AgentResult(
-            success=False,
-            output="",
+            success=False, output="",
             iterations=self.max_replans + 1,
             trace=trace,
             error=prior_failure or "all replans exhausted",

@@ -66,24 +66,18 @@ def test_ask_without_auth_errors(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 
 
 def test_ask_in_demo_mode_runs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """In demo mode + with mocked Anthropic, ask runs end-to-end."""
+    """In demo mode + a real-looking key + mocked provider, ask runs end-to-end."""
     monkeypatch.chdir(tmp_path)
-    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-fake-for-test")
     runner.invoke(app, ["init", "--demo", "-y"])
 
-    from types import SimpleNamespace
-    fake_client = type("FC", (), {})()
-    fake_client.messages = type("M", (), {})()
+    from ro_claude_kit_agent_patterns import FakeProvider, LLMResponse
 
-    def _create(**kwargs):
-        return SimpleNamespace(
-            content=[SimpleNamespace(type="text", text="You have 2 active subscriptions.")],
-            stop_reason="end_turn",
-            usage=SimpleNamespace(input_tokens=50, output_tokens=20),
-        )
-    fake_client.messages.create = _create
-
-    with patch("ro_claude_kit_agent_patterns.react.make_client", return_value=fake_client):
+    fake_provider = FakeProvider(responses=[
+        LLMResponse(text="You have 2 active subscriptions.", stop_reason="end_turn",
+                    usage={"input_tokens": 50, "output_tokens": 20}),
+    ])
+    with patch("ro_claude_kit_cli.runner.build_provider", return_value=fake_provider):
         result = runner.invoke(app, ["ask", "how many active subs?"])
     assert result.exit_code == 0
     assert "2 active subscriptions" in result.stdout

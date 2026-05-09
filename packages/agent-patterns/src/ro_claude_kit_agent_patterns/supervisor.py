@@ -2,57 +2,54 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from .base import DEFAULT_MODEL
+from .providers import AnthropicProvider, LLMProvider
 from .react import ReActAgent
 from .types import AgentResult, Step, Tool
 
 
 class SubAgent(BaseModel):
-    """A specialist sub-agent the supervisor can delegate to."""
-
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     name: str
     description: str
     system: str
     tools: list[Tool] = Field(default_factory=list)
-    model: str = DEFAULT_MODEL
+    provider: LLMProvider | None = None
     max_iterations: int = 10
 
 
 class SupervisorAgent(BaseModel):
-    """Orchestrator that delegates work to specialist sub-agents.
-
-    Each sub-agent is exposed to the orchestrator as a ``delegate_to_<name>`` tool.
-    When a sub-agent fails, the failure is surfaced as a tool error rather than
-    crashing the orchestrator — failure isolation by construction.
-
-    Pick this when:
-    - The task has heterogeneous sub-tasks with different tool sets / personas.
-    - You want failure isolation (one sub-agent erroring doesn't kill the run).
-    - Different sub-tasks benefit from different system prompts or models.
-    """
-
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     system: str
     sub_agents: list[SubAgent]
-    model: str = DEFAULT_MODEL
+    provider: LLMProvider | None = None
     max_iterations: int = 10
+
+    # Backward-compat:
+    model: str | None = None
     api_key: str | None = None
 
+    def model_post_init(self, _ctx: object) -> None:
+        if self.provider is None:
+            self.provider = AnthropicProvider(
+                model=self.model or "claude-sonnet-4-6",
+                api_key=self.api_key,
+            )
+
     def _delegate_tool(self, sub: SubAgent, parent_trace: list[Step]) -> Tool:
+        sub_provider = sub.provider or self.provider
+
         def handler(query: str) -> str:
             agent = ReActAgent(
                 system=sub.system,
                 tools=sub.tools,
-                model=sub.model,
+                provider=sub_provider,
                 max_iterations=sub.max_iterations,
-                api_key=self.api_key,
             )
             try:
                 result = agent.run(query)
-            except Exception as exc:  # noqa: BLE001 — failure must not propagate
+            except Exception as exc:  # noqa: BLE001
                 parent_trace.append(
                     Step(kind="error", content=f"sub-agent {sub.name} crashed: {exc}")
                 )
@@ -98,9 +95,8 @@ class SupervisorAgent(BaseModel):
         orchestrator = ReActAgent(
             system=supervisor_system,
             tools=delegate_tools,
-            model=self.model,
+            provider=self.provider,
             max_iterations=self.max_iterations,
-            api_key=self.api_key,
         )
         result = orchestrator.run(task)
         return AgentResult(

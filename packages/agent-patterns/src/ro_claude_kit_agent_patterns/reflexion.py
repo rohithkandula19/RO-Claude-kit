@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from .base import DEFAULT_MODEL, make_client, text_from_response
+from .providers import AnthropicProvider, LLMProvider, Message
 from .react import ReActAgent
 from .types import AgentResult, Step, Tool
 
@@ -13,29 +13,29 @@ class Critique(BaseModel):
 
 
 class ReflexionAgent(BaseModel):
-    """Act → reflect → retry-with-self-critique.
-
-    A ReAct agent runs, then a critic LLM evaluates the output. Unacceptable outputs
-    trigger another attempt with the critique fed back in as additional context.
-
-    Pick this when:
-    - Output quality matters more than latency (code generation, research, drafting).
-    - You can articulate what 'good' looks like in a critic prompt.
-    - First-attempt failures are recoverable with feedback.
-    """
+    """Act → reflect → retry-with-self-critique."""
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     agent_system: str
     critic_system: str
     tools: list[Tool] = Field(default_factory=list)
-    model: str = DEFAULT_MODEL
+    provider: LLMProvider | None = None
     max_attempts: int = 3
     max_iterations_per_attempt: int = 10
+
+    model: str | None = None
     api_key: str | None = None
 
+    def model_post_init(self, _ctx: object) -> None:
+        if self.provider is None:
+            self.provider = AnthropicProvider(
+                model=self.model or "claude-sonnet-4-6",
+                api_key=self.api_key,
+            )
+
     def _critique(self, task: str, output: str) -> Critique:
-        client = make_client(self.api_key)
+        assert self.provider is not None
         prompt = (
             f"Original task:\n{task}\n\n"
             f"Agent's output:\n{output}\n\n"
@@ -43,18 +43,17 @@ class ReflexionAgent(BaseModel):
             "ACCEPTABLE: <yes|no>\n"
             "FEEDBACK: <one paragraph of specific, actionable feedback>"
         )
-        response = client.messages.create(
-            model=self.model,
+        response = self.provider.complete(
             system=self.critic_system,
-            messages=[{"role": "user", "content": prompt}],
+            messages=[Message(role="user", content=prompt)],
+            tools=[],
             max_tokens=1024,
         )
-        text = text_from_response(response)
 
         is_acceptable = False
         feedback_lines: list[str] = []
         in_feedback = False
-        for line in text.splitlines():
+        for line in response.text.splitlines():
             stripped = line.strip()
             lowered = stripped.lower()
             if lowered.startswith("acceptable:"):
@@ -66,7 +65,7 @@ class ReflexionAgent(BaseModel):
             elif in_feedback and stripped:
                 feedback_lines.append(stripped)
 
-        feedback = " ".join(feedback_lines).strip() or text
+        feedback = " ".join(feedback_lines).strip() or response.text
         return Critique(is_acceptable=is_acceptable, feedback=feedback)
 
     def run(self, task: str) -> AgentResult:
@@ -81,9 +80,8 @@ class ReflexionAgent(BaseModel):
             agent = ReActAgent(
                 system=self.agent_system,
                 tools=self.tools,
-                model=self.model,
+                provider=self.provider,
                 max_iterations=self.max_iterations_per_attempt,
-                api_key=self.api_key,
             )
             result = agent.run(agent_input)
             trace.append(Step(kind="thought", content=f"attempt {attempt + 1}"))
