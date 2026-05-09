@@ -1,0 +1,39 @@
+name: Feature request
+description: Suggest a new capability or improvement.
+title: "[feat]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What's the problem?
+      description: Describe the use case. What can't you do today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: What would the API / UX look like? Code samples welcome.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you considered
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Which package(s) does this touch?
+      multiple: true
+      options:
+        - cli
+        - agent-patterns
+        - eval-suite
+        - memory
+        - mcp-servers
+        - hardening
+        - deployment-templates
+        - apps/demo
+        - apps/docs
+        - other

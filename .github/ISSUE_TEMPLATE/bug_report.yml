@@ -1,0 +1,60 @@
+name: Bug report
+description: Something isn't working — file a clear, reproducible report.
+title: "[bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time. Please fill out everything below — vague reports get closed.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Describe the bug. What did you expect, and what did you get?
+      placeholder: I ran `csk ask "..."` and expected X but got Y.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Minimal reproducer. Code is better than prose.
+      render: bash
+      placeholder: |
+        csk init --demo -y
+        csk ask "what ENG issues are in progress?"
+    validations:
+      required: true
+  - type: textarea
+    id: traceback
+    attributes:
+      label: Traceback / logs
+      description: Full stack trace or error output. Don't summarize.
+      render: text
+  - type: input
+    id: version
+    attributes:
+      label: csk / package version
+      placeholder: "csk 0.1.0"
+    validations:
+      required: true
+  - type: input
+    id: provider
+    attributes:
+      label: Provider + model
+      placeholder: "anthropic / claude-sonnet-4-6"
+  - type: input
+    id: python
+    attributes:
+      label: Python version
+      placeholder: "3.12.4"
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: OS
+      placeholder: "macOS 15.1"
+    validations:
+      required: true
