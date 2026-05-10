@@ -7,7 +7,9 @@ Shipped:
 - ``slack`` — Slack Web API wrapper (channels, history, users, search).
 - ``notion`` — Notion REST wrapper (search, pages, databases, query).
 - ``tavily`` — Tavily web-search wrapper (search + extract).
+- ``github`` — GitHub REST wrapper (repos, issues, pulls, commits, code search).
 """
+from .github_server import GitHubReadOnlyTools, github_tools
 from .linear import LinearReadOnlyTools, linear_tools
 from .notion import NotionReadOnlyTools, notion_tools
 from .postgres import (
@@ -22,12 +24,14 @@ from .tavily import TavilyTools, tavily_tools
 
 __all__ = [
     "DangerousSQLError",
+    "GitHubReadOnlyTools",
     "LinearReadOnlyTools",
     "NotionReadOnlyTools",
     "PostgresQueryTool",
     "SlackReadOnlyTools",
     "StripeReadOnlyTools",
     "TavilyTools",
+    "github_tools",
     "is_readonly_sql",
     "linear_tools",
     "notion_tools",

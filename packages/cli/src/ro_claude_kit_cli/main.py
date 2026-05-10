@@ -6,12 +6,17 @@ Subcommands:
     csk chat              — interactive REPL (multi-turn with short-term memory).
     csk tools             — list the tools registered for the current config.
     csk doctor            — health check.
+    csk save NAME "Q"     — save a question for later recall.
+    csk run NAME          — run a saved question.
+    csk queries           — list saved questions.
+    csk eval ...          — eval suite (golden datasets, drift detection).
     csk version           — print version.
 """
 from __future__ import annotations
 
 import os
 import sys
+from pathlib import Path
 from typing import Optional
 
 import typer
@@ -24,6 +29,7 @@ from rich.table import Table
 from . import __version__
 from .config import PROVIDER_PRESETS, CSKConfig, find_config_path, load_config, save_config
 from .runner import AgentResultRich, run_ask, start_chat
+from .saved_queries import QueryStore, default_path as queries_path
 from .tools import build_tools
 
 app = typer.Typer(
@@ -217,6 +223,123 @@ def doctor() -> None:
     table.add_row("csk version", __version__)
 
     console.print(table)
+
+
+# ---------- saved queries ----------
+
+@app.command()
+def save(
+    name: str = typer.Argument(..., help="Short slug-style name. Letters / digits / '-' / '_' only."),
+    query: list[str] = typer.Argument(..., help="The question to save. Quote multi-word questions."),
+    description: str = typer.Option("", "--description", "-d", help="Optional one-line description."),
+) -> None:
+    """Save a question under NAME for later recall via `csk run NAME`."""
+    path = queries_path()
+    store = QueryStore.load(path)
+    text = " ".join(query)
+    try:
+        store.add(name, text, description=description)
+    except ValueError as exc:
+        console.print(f"[red]✗[/red] {exc}")
+        raise typer.Exit(2)
+    store.save(path)
+    console.print(f"[green]✓[/green] saved [bold]{name}[/bold]: {text}")
+    console.print(f"[dim]run it with:[/dim] [bold]csk run {name}[/bold]")
+
+
+@app.command()
+def run(
+    name: str = typer.Argument(..., help="Name of a saved query."),
+    raw: bool = typer.Option(False, "--raw", help="Plain output."),
+) -> None:
+    """Run a saved query as if you typed `csk ask "<saved text>"`."""
+    store = QueryStore.load(queries_path())
+    try:
+        saved = store.get(name)
+    except KeyError:
+        console.print(f"[red]✗[/red] no saved query named [bold]{name}[/bold]. See [bold]csk queries[/bold].")
+        raise typer.Exit(2)
+
+    config = load_config()
+    if not config.has_provider_auth():
+        console.print(
+            f"[red]✗[/red] No credentials for provider [bold]{config.provider}[/bold]. Run [bold]csk init[/bold] first."
+        )
+        raise typer.Exit(2)
+
+    console.print(f"[dim]running saved query[/dim] [bold]{name}[/bold]: {saved.query}")
+    result = run_ask(config, saved.query, console=console)
+    _print_result(result, raw=raw)
+
+
+@app.command()
+def queries() -> None:
+    """List all saved queries."""
+    store = QueryStore.load(queries_path())
+    items = store.list_all()
+    if not items:
+        console.print("[dim]no saved queries yet. Try:[/dim] [bold]csk save mrr \"what is our MRR right now\"[/bold]")
+        return
+    table = Table(title="Saved queries", box=box.ROUNDED)
+    table.add_column("name", style="cyan", no_wrap=True)
+    table.add_column("query", overflow="fold")
+    table.add_column("description", style="dim", overflow="fold")
+    for q in items:
+        table.add_row(q.name, q.query, q.description or "")
+    console.print(table)
+
+
+@app.command(name="unsave")
+def unsave(name: str = typer.Argument(..., help="Name of the saved query to remove.")) -> None:
+    """Remove a saved query."""
+    path = queries_path()
+    store = QueryStore.load(path)
+    if not store.remove(name):
+        console.print(f"[red]✗[/red] no saved query named [bold]{name}[/bold]")
+        raise typer.Exit(2)
+    store.save(path)
+    console.print(f"[green]✓[/green] removed [bold]{name}[/bold]")
+
+
+# ---------- eval (delegates to the csk-eval entry point) ----------
+
+eval_app = typer.Typer(help="Eval suite: golden datasets, judge runs, drift detection.")
+app.add_typer(eval_app, name="eval")
+
+
+@eval_app.command("run", help="Run a golden dataset against a target model.")
+def eval_run(
+    dataset: Path = typer.Argument(..., help="Path to JSONL dataset."),
+    target: str = typer.Option("claude-sonnet-4-6", "--target"),
+    judge: str = typer.Option("claude-opus-4-7", "--judge"),
+    criteria: str = typer.Option(
+        "task_success,faithfulness,helpfulness,safety", "--criteria",
+        help="Comma-separated rubric criteria.",
+    ),
+    label: Optional[str] = typer.Option(None, "--label"),
+    json_out: str = typer.Option("eval-report.json", "--json-out"),
+    out: Optional[str] = typer.Option(None, "--out", help="Optional HTML report path."),
+) -> None:
+    from ro_claude_kit_eval_suite.cli import main as eval_main
+
+    argv = ["run", str(dataset), "--target", target, "--judge", judge, "--criteria", criteria, "--json-out", json_out]
+    if label:
+        argv += ["--label", label]
+    if out:
+        argv += ["--out", out]
+    raise typer.Exit(eval_main(argv))
+
+
+@eval_app.command("drift", help="Compare two run reports; exit non-zero on regression.")
+def eval_drift(
+    baseline: Path = typer.Argument(...),
+    candidate: Path = typer.Argument(...),
+    threshold: float = typer.Option(0.5, "--threshold"),
+) -> None:
+    from ro_claude_kit_eval_suite.cli import main as eval_main
+
+    argv = ["drift", str(baseline), str(candidate), "--threshold", str(threshold)]
+    raise typer.Exit(eval_main(argv))
 
 
 # ---------- version ----------

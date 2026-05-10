@@ -5,6 +5,9 @@ All notable changes to this project will be documented here. Format follows [Kee
 ## [Unreleased]
 
 ### Added
+- **Saved queries**: `csk save NAME "..."`, `csk run NAME`, `csk queries`, `csk unsave NAME`. Persists to `.csk/queries.toml`. Turn ad-hoc questions into reusable named commands.
+- **Unified eval subcommand**: `csk eval run <dataset>` and `csk eval drift <baseline> <candidate>` are now built into the main `csk` binary (the standalone `csk-eval` still works for back-compat).
+- **GitHub MCP server**: `GitHubReadOnlyTools` + `github_tools()` covering repos, issues, PRs, commits, code search. Falls back gracefully when an owner is a user vs an org. mcp-servers now ships 7 servers.
 - **End-to-end examples** with mermaid architecture diagrams and cookbook docs:
   - `examples/customer-support/` — SupervisorAgent orchestrating triage / billing-lookup / KB-lookup / Linear-lookup specialists, Pydantic `DraftReply` schema, 25-case golden dataset.
   - `examples/code-reviewer/` — three specialists (style / bugs / security) aggregating into a typed `CodeReview`, with a deliberately-buggy sample file.
@@ -14,7 +17,7 @@ All notable changes to this project will be documented here. Format follows [Kee
 - Multi-provider support shipped earlier in [0.1.0] now exercised via the customer-support example.
 
 ### Repo stats
-- 165 tests, green on every push.
+- 189 tests, green on every push.
 
 ## [0.1.0] — 2026-05-08
 
