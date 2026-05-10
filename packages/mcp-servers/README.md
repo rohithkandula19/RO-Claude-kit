@@ -11,8 +11,23 @@ Reference MCP server templates. Read-only by default; write operations require e
 | Linear (read-only) | ✅ shipped |
 | Slack (read-only) | ✅ shipped |
 | Notion (read-only) | ✅ shipped |
+| Tavily web search (read-only) | ✅ shipped |
 
-All five servers are read-only by design. Adding write paths should go through `ApprovalGate` from the `hardening` package.
+All six servers are read-only by design. Adding write paths should go through `ApprovalGate` from the `hardening` package.
+
+## Tavily web search
+
+```python
+from ro_claude_kit_mcp_servers import TavilyTools
+
+tavily = TavilyTools(api_key="tvly-...")  # or set TAVILY_API_KEY
+result = tavily.search("What is the ReAct pattern?", max_results=5, include_answer=True)
+print(result["answer"])
+for hit in result["results"]:
+    print(f"  {hit['title']} — {hit['url']}")
+```
+
+Free tier at https://tavily.com gives 1000 searches/mo — perfect for a research agent.
 
 ## Stripe (read-only)
 
