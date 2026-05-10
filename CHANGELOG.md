@@ -4,6 +4,18 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ## [Unreleased]
 
+### Added
+- **End-to-end examples** with mermaid architecture diagrams and cookbook docs:
+  - `examples/customer-support/` — SupervisorAgent orchestrating triage / billing-lookup / KB-lookup / Linear-lookup specialists, Pydantic `DraftReply` schema, 25-case golden dataset.
+  - `examples/code-reviewer/` — three specialists (style / bugs / security) aggregating into a typed `CodeReview`, with a deliberately-buggy sample file.
+  - `examples/README.md` — gallery + adapt-it pattern.
+- **Tavily web-search MCP server** — `TavilyTools` + `tavily_tools()` factory.
+- **Examples smoke tests** — end-to-end run via FakeProvider, validates the golden dataset.
+- Multi-provider support shipped earlier in [0.1.0] now exercised via the customer-support example.
+
+### Repo stats
+- 165 tests, green on every push.
+
 ## [0.1.0] — 2026-05-08
 
 ### Added — `csk` CLI

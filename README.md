@@ -4,7 +4,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Status](https://img.shields.io/badge/status-v0.1.0-blue)](CHANGELOG.md)
-[![Tests](https://img.shields.io/badge/tests-158%20passing-green)](https://github.com/rohithkandula19/RO-Claude-kit/actions)
+[![Tests](https://img.shields.io/badge/tests-165%20passing-green)](https://github.com/rohithkandula19/RO-Claude-kit/actions)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![Providers](https://img.shields.io/badge/providers-Claude%20·%20Ollama%20·%20OpenAI%20·%20Together%20·%20Groq%20·%20Fireworks-d4a373)](#-supported-providers)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
@@ -130,7 +130,7 @@ PII (emails, SSNs, credit cards, API keys) is redacted from traces before anythi
 | `eval-suite` | LLM-as-a-judge, golden datasets, drift detection, HTML reports | 11 |
 | `memory` | Short-term (rolling summary), long-term (pluggable vector store), user preferences | 11 |
 | `hardening` | Prompt-injection scanner, tool allowlist, approval gates, output validator | 20 |
-| `mcp-servers` | Read-only Postgres, Stripe, Linear, Slack, Notion templates | 49 |
+| `mcp-servers` | Read-only Postgres, Stripe, Linear, Slack, Notion, Tavily templates | 56 |
 | `cli` | The `csk` binary | 36 |
 | `deployment-templates` | Docker Compose, Modal, Vercel, Railway | — |
 | `apps/demo` | AgentLab — interactive FastAPI playground | 5 |
