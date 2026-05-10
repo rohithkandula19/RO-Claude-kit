@@ -4,7 +4,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Status](https://img.shields.io/badge/status-v0.1.0-blue)](CHANGELOG.md)
-[![Tests](https://img.shields.io/badge/tests-152%20passing-green)](https://github.com/rohithkandula19/RO-Claude-kit/actions)
+[![Tests](https://img.shields.io/badge/tests-158%20passing-green)](https://github.com/rohithkandula19/RO-Claude-kit/actions)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![Providers](https://img.shields.io/badge/providers-Claude%20·%20Ollama%20·%20OpenAI%20·%20Together%20·%20Groq%20·%20Fireworks-d4a373)](#-supported-providers)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
@@ -173,6 +173,22 @@ suite = EvalSuite(
     target_runner=lambda case: agent.run(case.input).output,
 )
 report = suite.run(GoldenDataset.from_jsonl("./golden.jsonl"))
+```
+
+## Examples
+
+End-to-end agents you can run today:
+
+| Example | What it shows |
+|---|---|
+| [`research-agent/`](examples/research-agent/) | ReAct with a toy KB — smallest, simplest |
+| [`customer-support/`](examples/customer-support/) | Supervisor + 4 sub-agents, Pydantic-validated `DraftReply`, 25-case golden dataset |
+| [`code-reviewer/`](examples/code-reviewer/) | 3 specialist sub-agents (style / bugs / security) aggregating into a typed `CodeReview` |
+
+```bash
+export ANTHROPIC_API_KEY=sk-ant-...
+uv run python examples/customer-support/main.py "I was charged twice for my Pro plan!"
+uv run python examples/code-reviewer/main.py examples/code-reviewer/sample_buggy_code.py
 ```
 
 ## Try AgentLab — the interactive playground

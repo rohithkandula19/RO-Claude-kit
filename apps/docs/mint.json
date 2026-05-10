@@ -28,6 +28,10 @@
       ]
     },
     {
+      "group": "Cookbook",
+      "pages": ["cookbook/customer-support", "cookbook/code-reviewer"]
+    },
+    {
       "group": "Reference",
       "pages": ["production-checklist", "adrs"]
     }
