@@ -51,7 +51,7 @@ Honest limitations:
 Try the demo in 60 seconds:
 
 ```
-pipx install ro-claude-kit-cli
+curl -sSL https://raw.githubusercontent.com/rohithkandula19/RO-Claude-kit/main/install.sh | bash
 csk init --demo
 csk briefing
 ```

@@ -16,7 +16,7 @@ Attach a screenshot of `csk briefing` running, or the GIF from `scripts/demo.tap
 >
 > One command. Read-only. Open source.
 >
-> `pipx install ro-claude-kit-cli && csk briefing`
+> `curl -sSL https://raw.githubusercontent.com/rohithkandula19/RO-Claude-kit/main/install.sh | bash && csk briefing`
 >
 > 👇 thread
 

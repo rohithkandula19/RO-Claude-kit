@@ -11,7 +11,7 @@ Long-form post. Optimized for "how I built it" energy + a clear ask.
 **The product**: a CLI called `csk` whose headline command is `csk briefing`. Pulls from your configured services (Stripe, Linear, Slack, Notion, Postgres, GitHub — all read-only) and produces a Markdown report: MRR, new/churned subs, failed payments, urgent engineering issues, action items. Auto-saves each run; subsequent runs show "vs last week" deltas inline.
 
 ```
-pipx install ro-claude-kit-cli
+curl -sSL https://raw.githubusercontent.com/rohithkandula19/RO-Claude-kit/main/install.sh | bash
 csk init --demo        # ships fake data — zero-config tour
 csk briefing
 ```

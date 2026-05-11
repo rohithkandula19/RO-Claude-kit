@@ -12,7 +12,7 @@ Wrote it as a portfolio piece for my @AnthropicAI Applied AI Engineer (Startups)
 
 Built in 6 weeks of evenings. MIT. Demo runs zero-config.
 
-`pipx install ro-claude-kit-cli && csk briefing`
+`curl -sSL https://raw.githubusercontent.com/rohithkandula19/RO-Claude-kit/main/install.sh | bash && csk briefing`
 
 github.com/rohithkandula19/RO-Claude-kit
 

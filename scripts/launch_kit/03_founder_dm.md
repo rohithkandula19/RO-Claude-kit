@@ -10,7 +10,7 @@ hey — built a thing I think saves you 15 min every Monday. CLI that takes your
 100% read-only, MIT, runs locally, you own the keys.
 
 ```
-pipx install ro-claude-kit-cli
+curl -sSL https://raw.githubusercontent.com/rohithkandula19/RO-Claude-kit/main/install.sh | bash
 csk init
 csk briefing
 ```

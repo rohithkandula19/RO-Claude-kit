@@ -10,7 +10,7 @@
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
 ```bash
-$ pipx install ro-claude-kit-cli
+$ curl -sSL https://raw.githubusercontent.com/rohithkandula19/RO-Claude-kit/main/install.sh | bash
 $ csk init --demo
 $ csk briefing
 ```
@@ -68,12 +68,14 @@ model = "llama3.1"
 ## Install
 
 ```bash
-pipx install ro-claude-kit-cli                # recommended (isolated venv)
-# or
-pip install ro-claude-kit-cli
+# one-liner: installs uv if missing, clones the repo, syncs the workspace,
+# drops a 'csk' shim in ~/.local/bin
+curl -sSL https://raw.githubusercontent.com/rohithkandula19/RO-Claude-kit/main/install.sh | bash
 ```
 
-For Postgres support: `pipx install 'ro-claude-kit-cli[postgres]'`.
+Pin a tag: append `-s -- --ref v0.2.0`. PyPI publish is wired (`.github/workflows/release.yml`) and lands `pip install ro-claude-kit-cli` once `PYPI_TOKEN` is set as a repo secret.
+
+For Postgres support after install: `(cd ~/.local/share/ro-claude-kit && uv pip install psycopg2-binary)`.
 
 ## 30-second quickstart (no real credentials)
 
