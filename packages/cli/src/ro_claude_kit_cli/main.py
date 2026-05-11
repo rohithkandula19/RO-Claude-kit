@@ -587,6 +587,36 @@ def tui() -> None:
     run_tui(config=config)
 
 
+# ---------- briefing ----------
+
+@app.command()
+def briefing(
+    out: Optional[Path] = typer.Option(None, "--out", help="Write briefing to a Markdown file."),
+    raw: bool = typer.Option(False, "--raw", help="Print plain Markdown (no Rich panel)."),
+) -> None:
+    """Weekly founder briefing: revenue, churn, payment failures, top engineering issues.
+
+    Works offline in demo mode; uses Claude (or your configured provider) in real mode.
+    Output is Markdown — paste it into Slack, email, or a doc.
+    """
+    config = load_config()
+    from .briefing import compute_briefing_data, render_briefing_md
+    from .tools import build_tools
+
+    tools = build_tools(config)
+    data = compute_briefing_data(tools)
+    md = render_briefing_md(data)
+
+    if out:
+        out.write_text(md, encoding="utf-8")
+        console.print(f"[green]✓[/green] wrote briefing to [cyan]{out}[/cyan]")
+    if raw:
+        sys.stdout.write(md)
+        return
+    from rich.markdown import Markdown
+    console.print(Markdown(md))
+
+
 # ---------- version ----------
 
 @app.command()

@@ -16,6 +16,13 @@ from ro_claude_kit_mcp_servers import (
 )
 
 from .config import CSKConfig
+from .demo_data import (
+    CHARGES as DEMO_CHARGES,
+    CUSTOMERS as DEMO_CUSTOMERS,
+    ISSUES as DEMO_ISSUES_FULL,
+    SUBSCRIPTIONS as DEMO_SUBS,
+    TEAMS as DEMO_TEAMS_FULL,
+)
 
 
 def _wrap(name: str, description: str, schema: dict[str, Any], handler: Callable[..., Any]) -> Tool:
@@ -23,22 +30,6 @@ def _wrap(name: str, description: str, schema: dict[str, Any], handler: Callable
 
 
 # ---------- Stripe ----------
-
-DEMO_CUSTOMERS = [
-    {"id": "cus_demo_alice", "email": "alice@acme.com", "name": "Alice Acme", "created": 1714521600},
-    {"id": "cus_demo_bob", "email": "bob@beta.io", "name": "Bob Beta", "created": 1717113600},
-    {"id": "cus_demo_carol", "email": "carol@charlie.dev", "name": "Carol Charlie", "created": 1719792000},
-]
-DEMO_SUBS = [
-    {"id": "sub_1", "customer": "cus_demo_alice", "status": "active", "amount": 4900, "plan": "Pro"},
-    {"id": "sub_2", "customer": "cus_demo_bob", "status": "active", "amount": 2900, "plan": "Starter"},
-    {"id": "sub_3", "customer": "cus_demo_carol", "status": "canceled", "amount": 4900, "plan": "Pro"},
-]
-DEMO_CHARGES = [
-    {"id": "ch_1", "customer": "cus_demo_alice", "amount": 4900, "status": "succeeded", "created": 1727884800},
-    {"id": "ch_2", "customer": "cus_demo_bob", "amount": 2900, "status": "succeeded", "created": 1728144000},
-    {"id": "ch_3", "customer": "cus_demo_alice", "amount": 4900, "status": "succeeded", "created": 1730476800},
-]
 
 
 def stripe_demo_tools() -> list[Tool]:
@@ -122,12 +113,8 @@ def stripe_real_tools(api_key: str) -> list[Tool]:
 
 # ---------- Linear ----------
 
-DEMO_TEAMS = [{"id": "t_eng", "key": "ENG", "name": "Engineering"}, {"id": "t_des", "key": "DES", "name": "Design"}]
-DEMO_ISSUES = [
-    {"id": "i1", "identifier": "ENG-101", "title": "Stripe webhook flake", "state": {"name": "In Progress"}, "priority": 1},
-    {"id": "i2", "identifier": "ENG-102", "title": "Auth: rotate session keys", "state": {"name": "Todo"}, "priority": 2},
-    {"id": "i3", "identifier": "DES-7", "title": "Onboarding redesign", "state": {"name": "In Review"}, "priority": 3},
-]
+DEMO_TEAMS = DEMO_TEAMS_FULL
+DEMO_ISSUES = DEMO_ISSUES_FULL
 
 
 def linear_demo_tools() -> list[Tool]:

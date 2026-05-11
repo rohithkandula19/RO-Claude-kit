@@ -1,10 +1,10 @@
 # RO-Claude-kit
 
-> The agent CLI for startup ops. Install once, configure once, then ask questions about your data — backed by Claude or any open-source LLM you choose.
+> **The Monday-morning founder briefing as a CLI.** One command. Revenue, churn, payment failures, top engineering issues — pulled live from Stripe + Linear + Slack + Notion + Postgres in 10 seconds. Plus ad-hoc questions in plain English.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Status](https://img.shields.io/badge/status-v0.1.0-blue)](CHANGELOG.md)
-[![Tests](https://img.shields.io/badge/tests-218%20passing-green)](https://github.com/rohithkandula19/RO-Claude-kit/actions)
+[![Status](https://img.shields.io/badge/status-v0.2.0-blue)](CHANGELOG.md)
+[![Tests](https://img.shields.io/badge/tests-223%20passing-green)](https://github.com/rohithkandula19/RO-Claude-kit/actions)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![Providers](https://img.shields.io/badge/providers-Claude%20·%20Ollama%20·%20OpenAI%20·%20Together%20·%20Groq%20·%20Fireworks-d4a373)](#-supported-providers)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
@@ -12,18 +12,37 @@
 ```bash
 $ pipx install ro-claude-kit-cli
 $ csk init --demo
-$ csk ask "how many active subscriptions do we have, and what's our MRR?"
+$ csk briefing
+```
 
-🤔 thinking…
-✅ You have 2 active subscriptions: Alice (Pro $49/mo) and Bob (Starter $29/mo).
-   Total MRR from active subs: $78/mo.
+```markdown
+# Founder briefing — 2026-05-11
+
+## 💰 Revenue
+- MRR: $334 (ARR ~$4,008)
+- New this week: 2 (Team for Grace, Starter for Henry)
+- Churned this week: 1 — ⚠️ Pro `cus_demo_carol` (ARR loss $588)
+
+## 💳 Payments (last 7 days)
+- 6 succeeded · 1 failed · 0 refunded
+- Failed charges to retry: cus_demo_frank ($49) — card_declined
+- ⚠️ 1 subscription past due — at risk of churn
+
+## 🛠 Engineering
+- Urgent open: 2 · High open: 5 · In-progress: 3
+- ENG-101 Stripe webhook flake — Alice, In Progress
+
+## ✅ Suggested action items
+- Reach out to recently churned customers for exit interviews
+- Retry failed payments / dunning for past-due subs
+- Unblock or escalate every Urgent (P1) issue
 ```
 
 ## What is `csk`?
 
-`csk` is the CLI you point at your startup's data. Configure once with read-only credentials for the services you care about — Stripe, Linear, Slack, Notion, Postgres — then ask questions in plain English. The agent reaches for the right tool, queries the right data, and answers.
+`csk` is the CLI you point at your startup's data. The **headline command is `csk briefing`** — a one-line replacement for the Monday-morning "let me check Stripe, then Linear, then Slack" ritual.
 
-No more clicking through five dashboards to answer "which customers churned this month and what did their last support thread say?"
+It's also a general-purpose data-question CLI: `csk ask "..."`, `csk chat` (multi-turn), `csk tui` (full-screen), and 11 more subcommands. Read-only by design — no path to mutate your data through the agent.
 
 ## 🧠 Supported providers
 
@@ -94,6 +113,7 @@ Add `.csk/` to `.gitignore` — the file is plaintext credentials.
 | Command | What it does |
 |---|---|
 | `csk init [--demo]` | Create a config file (interactive or demo). |
+| **`csk briefing [--out file.md]`** | **Weekly founder briefing — the headline command.** |
 | `csk ask "<question>"` | One-shot — print answer + typed trace. |
 | `csk chat` | Multi-turn REPL with short-term memory. |
 | `csk tui` | Full-screen Textual UI: chat + live trace, F1 help. |

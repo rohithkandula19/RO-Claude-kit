@@ -1994,7 +1994,7 @@ dev = [{ name = "pytest", specifier = ">=7.0" }]
 
 [[package]]
 name = "ro-claude-kit-cli"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "packages/cli" }
 dependencies = [
     { name = "anthropic" },
