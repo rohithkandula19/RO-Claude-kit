@@ -4,7 +4,8 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ## [Unreleased]
 
-### Added — extensibility, HTTP mode, cost tracking
+### Added — TUI, extensibility, HTTP mode, cost tracking
+- **`csk tui`**: full-screen Textual interface. Chat pane (multi-turn with in-session memory) + live trace pane, F1 help, Ctrl-L to clear, Ctrl-Q to quit. Runs the agent in a worker thread so the UI stays responsive while Claude is thinking.
 - **Plugin loader**: drop a Python file in `.csk/plugins/` exposing `register_tools() -> list[Tool]` and it auto-loads. Broken plugins don't take down others — errors are surfaced via `csk plugins`. First-class extensibility without forking the kit.
 - **`csk serve`**: exposes the configured agent as an HTTP API (`POST /ask`, `GET /health`). Pairs cleanly with the existing Vercel/Railway/Docker deployment templates — `docker compose up` and you have a real agent backend.
 - **`csk costs`**: every `csk ask` / `csk chat` run now records token usage + cost to `.csk/usage.jsonl`. `csk costs` shows total + per-model + per-day. Pricing table for Anthropic, OpenAI, Together, Groq, Fireworks, Ollama (free).
@@ -19,7 +20,7 @@ All notable changes to this project will be documented here. Format follows [Kee
 - **Tavily web-search MCP server** — `TavilyTools` + `tavily_tools()` factory.
 
 ### Repo stats
-- 212 tests, green on every push.
+- 218 tests, green on every push.
 
 ## [0.1.0] — 2026-05-08
 

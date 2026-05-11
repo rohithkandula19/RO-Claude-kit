@@ -4,7 +4,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Status](https://img.shields.io/badge/status-v0.1.0-blue)](CHANGELOG.md)
-[![Tests](https://img.shields.io/badge/tests-212%20passing-green)](https://github.com/rohithkandula19/RO-Claude-kit/actions)
+[![Tests](https://img.shields.io/badge/tests-218%20passing-green)](https://github.com/rohithkandula19/RO-Claude-kit/actions)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![Providers](https://img.shields.io/badge/providers-Claude%20·%20Ollama%20·%20OpenAI%20·%20Together%20·%20Groq%20·%20Fireworks-d4a373)](#-supported-providers)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
@@ -96,6 +96,7 @@ Add `.csk/` to `.gitignore` — the file is plaintext credentials.
 | `csk init [--demo]` | Create a config file (interactive or demo). |
 | `csk ask "<question>"` | One-shot — print answer + typed trace. |
 | `csk chat` | Multi-turn REPL with short-term memory. |
+| `csk tui` | Full-screen Textual UI: chat + live trace, F1 help. |
 | `csk save NAME "..."` | Save a question for later (turns ad-hoc into reusable). |
 | `csk run NAME` | Run a saved query. |
 | `csk queries` / `csk unsave NAME` | List or remove saved queries. |

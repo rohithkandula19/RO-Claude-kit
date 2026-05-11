@@ -552,6 +552,41 @@ def costs(
     console.print(table)
 
 
+# ---------- tui ----------
+
+@app.command()
+def tui() -> None:
+    """Launch a full-screen TUI (Textual) — chat pane + live trace + input box."""
+    config = load_config()
+    if not config.has_provider_auth():
+        console.print(f"[red]✗[/red] No credentials for provider [bold]{config.provider}[/bold]. Run [bold]csk init[/bold] first.")
+        raise typer.Exit(2)
+    try:
+        from .tui import run_tui
+    except ImportError as exc:
+        console.print(f"[red]✗[/red] textual not installed: {exc}. Try [bold]uv pip install textual[/bold].")
+        raise typer.Exit(2)
+    run_tui(config=config)
+
+
+# ---------- tui ----------
+
+@app.command()
+def tui() -> None:
+    """Full-screen Textual UI: chat pane (multi-turn) + live trace pane, with Ctrl-L to clear and F1 for help."""
+    config = load_config()
+    if not config.has_provider_auth():
+        console.print(
+            f"[red]✗[/red] No credentials for provider [bold]{config.provider}[/bold]. Run [bold]csk init[/bold] first "
+            "(or [bold]csk init --demo[/bold] for an offline tour)."
+        )
+        raise typer.Exit(2)
+
+    from .tui import run_tui
+
+    run_tui(config=config)
+
+
 # ---------- version ----------
 
 @app.command()
