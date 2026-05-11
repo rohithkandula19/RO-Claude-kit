@@ -56,3 +56,10 @@ htmlcov/
 # Misc
 *.pem
 .vercel
+
+# SaaS / CLI runtime artifacts
+csk_saas.db
+csk_saas.db-journal
+.csk/briefings/
+.csk/usage.jsonl
+.csk/queries.toml
