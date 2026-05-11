@@ -132,6 +132,13 @@ Add `.csk/` to `.gitignore` — the file is plaintext credentials.
 | `csk eval drift <a> <b>` | Compare two runs; non-zero exit on regression. CI-friendly. |
 | `csk version` | Print the version. |
 
+## Releasing & launching
+
+The repo ships two operational bits for whoever's running the project, not just using it:
+
+- **`scripts/release.sh <version>`** — bumps the CLI version, runs the test suite, updates the CHANGELOG, tags `vX.Y.Z`, pushes, and watches the tag-triggered PyPI publish workflow in `.github/workflows/release.yml`. Adds the version to PyPI in ~2 minutes. One-time setup: add a `PYPI_TOKEN` repo secret.
+- **`scripts/launch_kit/`** — 9 numbered, copy-paste-ready messages (Anthropic email/DM, founder DM, Show HN title + first comment, Indie Hackers, Twitter variants, LinkedIn, public Anthropic tag) + a 5-day plan at `DAY_BY_DAY_PLAN.md`. Start there once `release.sh` succeeds.
+
 ## Why csk vs ...
 
 | | csk | aider | langchain | crewai |

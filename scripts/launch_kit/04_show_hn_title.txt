@@ -1,0 +1,1 @@
+Show HN: A CLI that turns Stripe and Linear into a weekly founder briefing
