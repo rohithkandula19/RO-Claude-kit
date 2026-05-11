@@ -4,20 +4,22 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ## [Unreleased]
 
-### Added
-- **Saved queries**: `csk save NAME "..."`, `csk run NAME`, `csk queries`, `csk unsave NAME`. Persists to `.csk/queries.toml`. Turn ad-hoc questions into reusable named commands.
-- **Unified eval subcommand**: `csk eval run <dataset>` and `csk eval drift <baseline> <candidate>` are now built into the main `csk` binary (the standalone `csk-eval` still works for back-compat).
-- **GitHub MCP server**: `GitHubReadOnlyTools` + `github_tools()` covering repos, issues, PRs, commits, code search. Falls back gracefully when an owner is a user vs an org. mcp-servers now ships 7 servers.
-- **End-to-end examples** with mermaid architecture diagrams and cookbook docs:
-  - `examples/customer-support/` — SupervisorAgent orchestrating triage / billing-lookup / KB-lookup / Linear-lookup specialists, Pydantic `DraftReply` schema, 25-case golden dataset.
-  - `examples/code-reviewer/` — three specialists (style / bugs / security) aggregating into a typed `CodeReview`, with a deliberately-buggy sample file.
-  - `examples/README.md` — gallery + adapt-it pattern.
+### Added — extensibility, HTTP mode, cost tracking
+- **Plugin loader**: drop a Python file in `.csk/plugins/` exposing `register_tools() -> list[Tool]` and it auto-loads. Broken plugins don't take down others — errors are surfaced via `csk plugins`. First-class extensibility without forking the kit.
+- **`csk serve`**: exposes the configured agent as an HTTP API (`POST /ask`, `GET /health`). Pairs cleanly with the existing Vercel/Railway/Docker deployment templates — `docker compose up` and you have a real agent backend.
+- **`csk costs`**: every `csk ask` / `csk chat` run now records token usage + cost to `.csk/usage.jsonl`. `csk costs` shows total + per-model + per-day. Pricing table for Anthropic, OpenAI, Together, Groq, Fireworks, Ollama (free).
+- **`csk plugins`**: discover and inspect loaded plugins.
+- **vhs tape** at `scripts/demo.tape` — declarative terminal-recording script so a 30-second GIF for the README is one `vhs scripts/demo.tape` away.
+
+### Added — earlier in Unreleased
+- **Saved queries**: `csk save NAME "..."`, `csk run NAME`, `csk queries`, `csk unsave NAME`. Persists to `.csk/queries.toml`.
+- **Unified eval subcommand**: `csk eval run`/`drift` now built into the main `csk` binary (`csk-eval` still works for back-compat).
+- **GitHub MCP server**: `GitHubReadOnlyTools` + `github_tools()` covering repos, issues, PRs, commits, code search. mcp-servers now ships 7 servers.
+- **End-to-end examples**: `customer-support/` (Supervisor + 4 specialists + Pydantic `DraftReply`) and `code-reviewer/` (style/bugs/security specialists + typed `CodeReview`).
 - **Tavily web-search MCP server** — `TavilyTools` + `tavily_tools()` factory.
-- **Examples smoke tests** — end-to-end run via FakeProvider, validates the golden dataset.
-- Multi-provider support shipped earlier in [0.1.0] now exercised via the customer-support example.
 
 ### Repo stats
-- 189 tests, green on every push.
+- 212 tests, green on every push.
 
 ## [0.1.0] — 2026-05-08
 

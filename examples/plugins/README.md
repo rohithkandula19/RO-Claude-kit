@@ -1,0 +1,47 @@
+# Custom plugins
+
+Drop a Python file in `.csk/plugins/` and `csk` will pick up any tools it exposes — no fork required.
+
+## Anatomy
+
+```python
+# .csk/plugins/my_tool.py
+from ro_claude_kit_agent_patterns import Tool
+
+
+def my_handler(arg: str) -> str:
+    return "result"
+
+
+def register_tools() -> list[Tool]:
+    return [
+        Tool(
+            name="my_tool",
+            description="What it does (the LLM reads this).",
+            input_schema={
+                "type": "object",
+                "properties": {"arg": {"type": "string"}},
+                "required": ["arg"],
+            },
+            handler=my_handler,
+        ),
+    ]
+```
+
+That's it. `csk ask "..."` now has `my_tool` available alongside the built-in service tools.
+
+## Try the example
+
+```bash
+mkdir -p .csk/plugins
+cp examples/plugins/weather.py .csk/plugins/weather.py
+csk plugins                                                       # confirms it loaded
+csk ask "what's the weather in tokyo right now?"                  # invokes the plugin
+```
+
+## Conventions
+
+- Files starting with `_` are skipped.
+- `register_tools()` must return a `list[Tool]`. Anything else fails loudly in `csk plugins`.
+- Errors in one plugin do not abort the others.
+- Plugins load AFTER built-in service tools. If you give a plugin tool the same name as a built-in, the built-in wins.

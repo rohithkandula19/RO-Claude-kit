@@ -237,21 +237,25 @@ def postgres_real_tools(database_url: str) -> list[Tool]:
 
 
 def build_tools(config: CSKConfig) -> list[Tool]:
-    """Assemble the full tool list for the configured/demo services."""
+    """Assemble the full tool list for the configured/demo services + any user plugins."""
+    from .plugins import load_plugin_tools
+
     tools: list[Tool] = []
     if config.demo_mode:
         tools.extend(stripe_demo_tools())
         tools.extend(linear_demo_tools())
-        return tools
+    else:
+        if config.stripe_api_key:
+            tools.extend(stripe_real_tools(config.stripe_api_key))
+        if config.linear_api_key:
+            tools.extend(linear_real_tools(config.linear_api_key))
+        if config.slack_bot_token:
+            tools.extend(slack_real_tools(config.slack_bot_token, config.slack_user_token))
+        if config.notion_token:
+            tools.extend(notion_real_tools(config.notion_token))
+        if config.database_url:
+            tools.extend(postgres_real_tools(config.database_url))
 
-    if config.stripe_api_key:
-        tools.extend(stripe_real_tools(config.stripe_api_key))
-    if config.linear_api_key:
-        tools.extend(linear_real_tools(config.linear_api_key))
-    if config.slack_bot_token:
-        tools.extend(slack_real_tools(config.slack_bot_token, config.slack_user_token))
-    if config.notion_token:
-        tools.extend(notion_real_tools(config.notion_token))
-    if config.database_url:
-        tools.extend(postgres_real_tools(config.database_url))
+    # User plugins always loaded last so they can override or supplement built-ins.
+    tools.extend(load_plugin_tools())
     return tools

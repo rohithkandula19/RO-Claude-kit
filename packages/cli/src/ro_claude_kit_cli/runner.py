@@ -135,6 +135,19 @@ def run_ask(config: CSKConfig, question: str, *, console: Console | None = None)
     else:
         result = agent.run(question)
 
+    # Record token usage / cost (best-effort; never fail the user's command).
+    try:
+        from .usage import record_usage
+        record_usage(
+            command="ask",
+            provider=config.provider,
+            model=config.resolved_model(),
+            input_tokens=int(result.usage.get("input_tokens", 0) or 0),
+            output_tokens=int(result.usage.get("output_tokens", 0) or 0),
+        )
+    except Exception:  # noqa: BLE001
+        pass
+
     return AgentResultRich(
         success=result.success,
         output=result.output,
