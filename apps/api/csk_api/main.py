@@ -1,15 +1,24 @@
 """FastAPI app — exposes the hosted SaaS API."""
 from __future__ import annotations
 
+import json
 from datetime import datetime
-from typing import Iterator
+from typing import Any, Iterator
 
-from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Header, Request
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.orm import Session
 
+from .billing import (
+    BillingConfig,
+    apply_webhook_event,
+    create_checkout_session,
+    verify_stripe_signature,
+)
 from .config import generate_api_token, get_settings
-from .db import ALLOWED_SERVICES, init_db, session_scope
+from .db import ALLOWED_SERVICES, Plan, init_db, session_scope
+from .oauth import build_authorize_url, exchange_code
 from .services import (
     create_user,
     list_briefings,
@@ -180,6 +189,63 @@ def make_app() -> FastAPI:
             enabled=bool(schedule.enabled),
             last_run_at=schedule.last_run_at,
         )
+
+    # ---------- OAuth ----------
+
+    @app.get("/oauth/{provider}/start")
+    def oauth_start(provider: str, user=Depends(current_user)) -> RedirectResponse:
+        try:
+            url = build_authorize_url(provider, user.id)
+        except (ValueError, RuntimeError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+        return RedirectResponse(url, status_code=302)
+
+    @app.get("/oauth/{provider}/callback")
+    def oauth_callback(
+        provider: str,
+        code: str,
+        state: str,
+        session: Session = Depends(db_dep),
+    ) -> dict[str, Any]:
+        try:
+            conn = exchange_code(session, provider, state, code)
+        except (ValueError, RuntimeError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+        return {"ok": True, "service": conn.service}
+
+    # ---------- Billing ----------
+
+    @app.post("/billing/checkout")
+    def billing_checkout(
+        plan: str,
+        user=Depends(current_user),
+    ) -> dict[str, str]:
+        try:
+            plan_enum = Plan(plan.lower())
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"unknown plan {plan!r}")
+        try:
+            url = create_checkout_session(user, plan_enum)
+        except (ValueError, RuntimeError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+        return {"url": url}
+
+    @app.post("/webhooks/stripe")
+    async def stripe_webhook(
+        request: Request,
+        session: Session = Depends(db_dep),
+    ) -> dict[str, Any]:
+        payload = await request.body()
+        signature = request.headers.get("Stripe-Signature", "")
+        cfg = BillingConfig.from_env()
+        if cfg.webhook_secret and not verify_stripe_signature(payload, signature, cfg.webhook_secret):
+            raise HTTPException(status_code=400, detail="invalid signature")
+        try:
+            event = json.loads(payload.decode("utf-8"))
+        except Exception as exc:  # noqa: BLE001
+            raise HTTPException(status_code=400, detail=f"bad payload: {exc}")
+        message = apply_webhook_event(session, event)
+        return {"ok": True, "message": message}
 
     return app
 
