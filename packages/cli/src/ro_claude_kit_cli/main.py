@@ -593,23 +593,97 @@ def tui() -> None:
 def briefing(
     out: Optional[Path] = typer.Option(None, "--out", help="Write briefing to a Markdown file."),
     raw: bool = typer.Option(False, "--raw", help="Print plain Markdown (no Rich panel)."),
+    slack: Optional[str] = typer.Option(None, "--slack", help="Post the briefing to a Slack channel (#founders or C123…)."),
+    history: bool = typer.Option(False, "--history", help="Show a trend table of past briefings instead of running a new one."),
+    no_save: bool = typer.Option(False, "--no-save", help="Don't persist this run to .csk/briefings/."),
 ) -> None:
     """Weekly founder briefing: revenue, churn, payment failures, top engineering issues.
 
     Works offline in demo mode; uses Claude (or your configured provider) in real mode.
-    Output is Markdown — paste it into Slack, email, or a doc.
+    Output is Markdown — paste into Slack, email, or a doc.
+
+    Each run is auto-saved to ``.csk/briefings/<date>.json`` so subsequent runs can
+    show week-over-week deltas inline. Use ``--history`` to see the trend table.
+    Use ``--slack <channel>`` to post the briefing directly.
     """
-    config = load_config()
     from .briefing import compute_briefing_data, render_briefing_md
+    from .briefing_history import (
+        BriefingSnapshot,
+        format_delta_line,
+        load_snapshots,
+        most_recent_prior,
+        save_snapshot,
+    )
+    from .briefing_history import BriefingDelta
     from .tools import build_tools
+
+    config = load_config()
+
+    # --history mode: just show the trend table and exit.
+    if history:
+        snapshots = load_snapshots()
+        if not snapshots:
+            console.print(
+                "[dim]no briefing history yet at[/dim] [cyan].csk/briefings/[/cyan][dim]. "
+                "Run [bold]csk briefing[/bold] once to start the trend.[/dim]"
+            )
+            return
+        table = Table(title="Briefing history", box=box.ROUNDED)
+        table.add_column("date", style="cyan", no_wrap=True)
+        table.add_column("MRR", justify="right")
+        table.add_column("active", justify="right")
+        table.add_column("new/wk", justify="right")
+        table.add_column("churn/wk", justify="right")
+        table.add_column("failed/wk", justify="right", style="red")
+        table.add_column("urgent open", justify="right", style="yellow")
+        for s in snapshots:
+            table.add_row(
+                s.date,
+                f"${s.mrr_cents / 100:,.0f}",
+                str(s.active_subs),
+                str(s.new_subs_7d),
+                str(s.churned_subs_7d),
+                str(s.failed_charges_7d),
+                str(s.urgent_open_issues),
+            )
+        console.print(table)
+        return
 
     tools = build_tools(config)
     data = compute_briefing_data(tools)
     md = render_briefing_md(data)
 
+    # Append "vs last week" line if we have a prior snapshot.
+    snapshot = BriefingSnapshot.from_briefing(data)
+    prior = most_recent_prior(snapshot.date)
+    if prior is not None:
+        delta = BriefingDelta.compute(snapshot, prior)
+        md = md.rstrip() + "\n\n" + format_delta_line(delta, prior.date) + "\n"
+
+    # Persist for trending (unless --no-save).
+    if not no_save:
+        save_snapshot(snapshot)
+
     if out:
         out.write_text(md, encoding="utf-8")
         console.print(f"[green]✓[/green] wrote briefing to [cyan]{out}[/cyan]")
+
+    if slack:
+        bot_token = config.slack_bot_token or os.environ.get("SLACK_BOT_TOKEN")
+        if not bot_token:
+            console.print(
+                "[red]✗[/red] No SLACK_BOT_TOKEN configured. Run [bold]csk init[/bold] or "
+                "set the env var (needs the chat:write scope)."
+            )
+            raise typer.Exit(2)
+        from .briefing_slack import post_briefing_to_slack
+        try:
+            resp = post_briefing_to_slack(bot_token, slack, md)
+            console.print(f"[green]✓[/green] posted to [cyan]{slack}[/cyan] (ts={resp.get('ts')})")
+        except (RuntimeError, ValueError) as exc:
+            console.print(f"[red]✗[/red] {exc}")
+            raise typer.Exit(2)
+
     if raw:
         sys.stdout.write(md)
         return
