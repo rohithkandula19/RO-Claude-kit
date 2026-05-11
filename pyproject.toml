@@ -16,4 +16,5 @@ members = [
     "packages/hardening",
     "packages/cli",
     "apps/demo",
+    "apps/api",
 ]

@@ -4,7 +4,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Status](https://img.shields.io/badge/status-v0.2.0-blue)](CHANGELOG.md)
-[![Tests](https://img.shields.io/badge/tests-242%20passing-green)](https://github.com/rohithkandula19/RO-Claude-kit/actions)
+[![Tests](https://img.shields.io/badge/tests-256%20passing-green)](https://github.com/rohithkandula19/RO-Claude-kit/actions)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![Providers](https://img.shields.io/badge/providers-Claude%20·%20Ollama%20·%20OpenAI%20·%20Together%20·%20Groq%20·%20Fireworks-d4a373)](#-supported-providers)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
@@ -133,6 +133,25 @@ Add `.csk/` to `.gitignore` — the file is plaintext credentials.
 | `csk eval run <dataset>` | LLM-as-judge eval over a golden dataset (HTML report optional). |
 | `csk eval drift <a> <b>` | Compare two runs; non-zero exit on regression. CI-friendly. |
 | `csk version` | Print the version. |
+
+## Hosted SaaS (`apps/api`)
+
+`csk` is the CLI. For founders who want the briefing to **run automatically every Monday and post to Slack without anyone opening a terminal**, there's a FastAPI backend at `apps/api/`. Sign up, upload encrypted credentials, schedule. Same briefing engine under the hood — the CLI and the hosted version share the aggregator code in `packages/cli/.../briefing.py`.
+
+```bash
+# run the API
+uv run uvicorn csk_api.main:app --reload --port 8000 --app-dir apps/api
+
+# run the cron worker (separate process)
+uv --project apps/api run python -m csk_api.worker --interval 60
+
+# smoke test
+TOKEN=$(curl -s -X POST http://localhost:8000/signup \
+  -H 'Content-Type: application/json' -d '{"email":"you@example.com"}' | jq -r .api_token)
+curl -X POST http://localhost:8000/briefings -H "Authorization: Bearer $TOKEN" | jq -r .markdown
+```
+
+See [`apps/api/README.md`](apps/api/README.md) for the full surface, encryption details, and Railway deploy.
 
 ## Releasing & launching
 
