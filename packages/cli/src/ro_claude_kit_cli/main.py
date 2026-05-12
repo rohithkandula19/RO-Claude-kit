@@ -595,6 +595,7 @@ def briefing(
     raw: bool = typer.Option(False, "--raw", help="Print plain Markdown (no Rich panel)."),
     slack: Optional[str] = typer.Option(None, "--slack", help="Post the briefing to a Slack channel (#founders or C123…)."),
     email: Optional[str] = typer.Option(None, "--email", help="Send the briefing to an email address (requires RESEND_API_KEY)."),
+    template: Optional[Path] = typer.Option(None, "--template", help="Path to a briefing-template.toml. Defaults to .csk/briefing-template.toml if present."),
     history: bool = typer.Option(False, "--history", help="Show a trend table of past briefings instead of running a new one."),
     no_save: bool = typer.Option(False, "--no-save", help="Don't persist this run to .csk/briefings/."),
 ) -> None:
@@ -652,7 +653,15 @@ def briefing(
 
     tools = build_tools(config)
     data = compute_briefing_data(tools)
-    md = render_briefing_md(data)
+
+    # If a template TOML is configured (--template flag or .csk/briefing-template.toml),
+    # use it. Otherwise render the four default sections.
+    from .briefing_template import BriefingTemplate, render_with_template
+    template_obj = BriefingTemplate.load(template)
+    if template is not None or (template_obj.sections != ["revenue", "payments", "engineering", "actions"] or template_obj.title != "Founder briefing — {{date}}"):
+        md = render_with_template(data, template_obj)
+    else:
+        md = render_briefing_md(data)
 
     # Append "vs last week" line if we have a prior snapshot.
     snapshot = BriefingSnapshot.from_briefing(data)
