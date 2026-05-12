@@ -670,6 +670,13 @@ def briefing(
         delta = BriefingDelta.compute(snapshot, prior)
         md = md.rstrip() + "\n\n" + format_delta_line(delta, prior.date) + "\n"
 
+    # Statistical anomalies vs trailing weeks (only fires after ≥4 prior runs).
+    from .briefing_anomaly import detect_anomalies, render_anomalies_section
+    history = load_snapshots()
+    anomalies = detect_anomalies(history, snapshot)
+    if anomalies:
+        md = md.rstrip() + "\n\n" + render_anomalies_section(anomalies) + "\n"
+
     # Persist for trending (unless --no-save).
     if not no_save:
         save_snapshot(snapshot)
