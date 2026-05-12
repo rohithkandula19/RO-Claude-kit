@@ -14,6 +14,7 @@ from .billing import (
     BillingConfig,
     apply_webhook_event,
     create_checkout_session,
+    create_portal_session,
     verify_stripe_signature,
 )
 from .config import generate_api_token, get_settings
@@ -226,6 +227,18 @@ def make_app() -> FastAPI:
             raise HTTPException(status_code=400, detail=f"unknown plan {plan!r}")
         try:
             url = create_checkout_session(user, plan_enum)
+        except (ValueError, RuntimeError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+        return {"url": url}
+
+    @app.post("/billing/portal")
+    def billing_portal(
+        return_url: str | None = None,
+        user=Depends(current_user),
+    ) -> dict[str, str]:
+        """Open the Stripe Customer Portal — self-serve plan changes + cancel."""
+        try:
+            url = create_portal_session(user, return_url=return_url)
         except (ValueError, RuntimeError) as exc:
             raise HTTPException(status_code=400, detail=str(exc))
         return {"url": url}

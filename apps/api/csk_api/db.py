@@ -59,6 +59,7 @@ class User(Base):
     email: str = Column(String(320), unique=True, nullable=False)  # type: ignore[assignment]
     api_token_hash: str = Column(String(128), nullable=False)  # type: ignore[assignment]
     plan: Plan = Column(Enum(Plan), default=Plan.FREE, nullable=False)  # type: ignore[assignment]
+    stripe_customer_id: str | None = Column(String(64), nullable=True)  # type: ignore[assignment]
     created_at: datetime = Column(DateTime, default=datetime.utcnow, nullable=False)  # type: ignore[assignment]
 
     connections: list["ServiceConnection"] = relationship(

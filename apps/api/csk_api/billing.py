@@ -106,6 +106,44 @@ def create_checkout_session(
     return url
 
 
+def create_portal_session(
+    user: User,
+    *,
+    return_url: str | None = None,
+    config: BillingConfig | None = None,
+    http: Any | None = None,
+) -> str:
+    """Open the Stripe Customer Portal so the user can change/cancel their plan.
+
+    Requires that the user has already gone through Checkout once — Stripe needs
+    a Customer ID. We store that in ``User.stripe_customer_id`` on the
+    ``checkout.session.completed`` webhook.
+    """
+    cfg = config or BillingConfig.from_env()
+    if not cfg.secret_key:
+        raise RuntimeError("STRIPE_SECRET_KEY not configured")
+    if not user.stripe_customer_id:
+        raise RuntimeError(
+            "user has no Stripe customer record yet — they need to complete Checkout first"
+        )
+
+    body = {
+        "customer": user.stripe_customer_id,
+        "return_url": return_url or os.environ.get("STRIPE_PORTAL_RETURN_URL", "http://localhost:3000/dashboard"),
+    }
+    client = http or httpx.Client(timeout=30)
+    resp = client.post(
+        f"{STRIPE_API_BASE}/billing_portal/sessions",
+        data=body,
+        auth=(cfg.secret_key, ""),
+    )
+    resp.raise_for_status()
+    url = resp.json().get("url")
+    if not url:
+        raise RuntimeError("stripe didn't return a portal url")
+    return url
+
+
 # ---------- webhook signature ----------
 
 def verify_stripe_signature(
@@ -163,6 +201,13 @@ def apply_webhook_event(session: Session, event: dict[str, Any]) -> str:
     if etype == "checkout.session.completed":
         user_id = _user_id_from(obj.get("client_reference_id"))
         plan = _plan_from_checkout(obj)
+        # Stash the Stripe customer ID so we can open Customer Portal later.
+        customer_id = obj.get("customer")
+        if user_id is not None and customer_id:
+            user = session.query(User).get(user_id)
+            if user is not None and isinstance(customer_id, str):
+                user.stripe_customer_id = customer_id
+                session.flush()
         return _set_user_plan(session, user_id, plan)
 
     if etype == "customer.subscription.updated":
