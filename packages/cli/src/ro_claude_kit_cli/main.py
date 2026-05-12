@@ -594,6 +594,7 @@ def briefing(
     out: Optional[Path] = typer.Option(None, "--out", help="Write briefing to a Markdown file."),
     raw: bool = typer.Option(False, "--raw", help="Print plain Markdown (no Rich panel)."),
     slack: Optional[str] = typer.Option(None, "--slack", help="Post the briefing to a Slack channel (#founders or C123…)."),
+    email: Optional[str] = typer.Option(None, "--email", help="Send the briefing to an email address (requires RESEND_API_KEY)."),
     history: bool = typer.Option(False, "--history", help="Show a trend table of past briefings instead of running a new one."),
     no_save: bool = typer.Option(False, "--no-save", help="Don't persist this run to .csk/briefings/."),
 ) -> None:
@@ -681,6 +682,22 @@ def briefing(
             resp = post_briefing_to_slack(bot_token, slack, md)
             console.print(f"[green]✓[/green] posted to [cyan]{slack}[/cyan] (ts={resp.get('ts')})")
         except (RuntimeError, ValueError) as exc:
+            console.print(f"[red]✗[/red] {exc}")
+            raise typer.Exit(2)
+
+    if email:
+        if not os.environ.get("RESEND_API_KEY"):
+            console.print(
+                "[red]✗[/red] No RESEND_API_KEY set. Get one at "
+                "[underline]https://resend.com/api-keys[/underline] then "
+                "[bold]export RESEND_API_KEY=re_...[/bold]"
+            )
+            raise typer.Exit(2)
+        from .briefing_email import send_briefing_email
+        try:
+            resp = send_briefing_email(email, md)
+            console.print(f"[green]✓[/green] emailed to [cyan]{email}[/cyan] (id={resp.get('id', '?')})")
+        except (ValueError, RuntimeError) as exc:
             console.print(f"[red]✗[/red] {exc}")
             raise typer.Exit(2)
 
